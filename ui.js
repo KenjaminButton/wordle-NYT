@@ -178,12 +178,6 @@ class WordleUI {
         `;
 
         document.body.appendChild(notification);
-
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 5000);
     }
 
     showLoseNotification({ word, definition }) {
@@ -200,12 +194,6 @@ class WordleUI {
         `;
 
         document.body.appendChild(notification);
-
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 5000);
     }
 
     removeExistingNotifications() {
