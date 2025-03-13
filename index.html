@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #ffffff;
+        }
+
+        #game {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .board {
+            display: grid;
+            gap: 5px;
+            margin-bottom: 30px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+        }
+
+        .tile {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #d3d6da;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .keyboard {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        button {
+            min-width: 43px;
+            height: 58px;
+            border-radius: 4px;
+            border: none;
+            background-color: #d3d6da;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        button.wide {
+            min-width: 65px;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .correct { 
+            background-color: #6aaa64 !important;
+            color: white;
+        }
+
+        .present { 
+            background-color: #c9b458 !important;
+            color: white;
+        }
+
+        .absent { 
+            background-color: #787c7e !important;
+            color: white;
+        }
+
+        #target-word {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <h1>Wordle</h1>
+        <div id="target-word"></div>
+        <div id="board"></div>
+        <div id="keyboard">
+            <div class="keyboard-row">
+                <button onclick="handleKey('q')">q</button>
+                <button onclick="handleKey('w')">w</button>
+                <button onclick="handleKey('e')">e</button>
+                <button onclick="handleKey('r')">r</button>
+                <button onclick="handleKey('t')">t</button>
+                <button onclick="handleKey('y')">y</button>
+                <button onclick="handleKey('u')">u</button>
+                <button onclick="handleKey('i')">i</button>
+                <button onclick="handleKey('o')">o</button>
+                <button onclick="handleKey('p')">p</button>
+            </div>
+            <div class="keyboard-row">
+                <button onclick="handleKey('a')">a</button>
+                <button onclick="handleKey('s')">s</button>
+                <button onclick="handleKey('d')">d</button>
+                <button onclick="handleKey('f')">f</button>
+                <button onclick="handleKey('g')">g</button>
+                <button onclick="handleKey('h')">h</button>
+                <button onclick="handleKey('j')">j</button>
+                <button onclick="handleKey('k')">k</button>
+                <button onclick="handleKey('l')">l</button>
+            </div>
+            <div class="keyboard-row">
+                <button class="wide" onclick="handleKey('Enter')">Enter</button>
+                <button onclick="handleKey('z')">z</button>
+                <button onclick="handleKey('x')">x</button>
+                <button onclick="handleKey('c')">c</button>
+                <button onclick="handleKey('v')">v</button>
+                <button onclick="handleKey('b')">b</button>
+                <button onclick="handleKey('n')">n</button>
+                <button onclick="handleKey('m')">m</button>
+                <button class="wide" onclick="handleKey('Backspace')">⌫</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let currentRow = 0;
+        let currentTile = 0;
+        let gameBoard;
+        let targetWord = '';
+        let currentGuess = '';
+
+        async function initializeBoard() {
+            gameBoard = document.getElementById('board');
+            gameBoard.className = 'board';
+            
+            // Create the game board
+            for (let i = 0; i < 6; i++) {
+                const row = document.createElement('div');
+                row.className = 'row';
+                for (let j = 0; j < 5; j++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    row.appendChild(tile);
+                }
+                gameBoard.appendChild(row);
+            }
+
+            // Load word list and select target word
+            try {
+                const response = await fetch('lib/test.json');
+                if (!response.ok) throw new Error('Failed to load word list');
+                const wordData = await response.json();
+                const words = Object.keys(wordData);
+                if (words.length === 0) throw new Error('No words found');
+                
+                targetWord = words[Math.floor(Math.random() * words.length)].toLowerCase();
+                const definition = wordData[targetWord];
+                
+                document.getElementById('target-word').innerHTML = 
+                    `<strong>${targetWord.toUpperCase()}</strong>: ${definition}`;
+                console.log('Target word:', targetWord, 'Definition:', definition);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('target-word').textContent = 'Error loading word';
+            }
+
+            // Add keyboard listener
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleKey('Enter');
+                } else if (e.key === 'Backspace') {
+                    handleKey('Backspace');
+                } else if (/^[a-zA-Z]$/.test(e.key)) {
+                    handleKey(e.key.toLowerCase());
+                }
+            });
+        }
+
+        function handleKey(key) {
+            if (currentRow >= 6) return; // Game over
+            
+            if (key === 'Backspace') {
+                if (currentTile > 0) {
+                    currentTile--;
+                    currentGuess = currentGuess.slice(0, -1);
+                    const tile = gameBoard.children[currentRow].children[currentTile];
+                    tile.textContent = '';
+                }
+            } else if (key === 'Enter') {
+                if (currentTile === 5) {
+                    checkGuess();
+                }
+            } else if (currentTile < 5) {
+                const tile = gameBoard.children[currentRow].children[currentTile];
+                tile.textContent = key.toUpperCase();
+                currentGuess += key;
+                currentTile++;
+            }
+        }
+
+        function checkGuess() {
+            const row = gameBoard.children[currentRow];
+            const tiles = Array.from(row.children);
+            const buttons = document.getElementsByTagName('button');
+            
+            // First pass: Mark correct letters
+            for (let i = 0; i < 5; i++) {
+                const tile = tiles[i];
+                const letter = currentGuess[i];
+                const button = Array.from(buttons).find(b => b.textContent.toLowerCase() === letter);
+                
+                if (letter === targetWord[i]) {
+                    tile.classList.add('correct');
+                    if (button) button.classList.add('correct');
+                } else if (targetWord.includes(letter)) {
+                    tile.classList.add('present');
+                    if (button && !button.classList.contains('correct')) {
+                        button.classList.add('present');
+                    }
+                } else {
+                    tile.classList.add('absent');
+                    if (button) button.classList.add('absent');
+                }
+            }
+
+            // Check win/lose condition
+            if (currentGuess === targetWord) {
+                setTimeout(() => alert('Congratulations! You won!'), 500);
+            } else if (currentRow === 5) {
+                setTimeout(() => alert(`Game Over! The word was ${targetWord.toUpperCase()}`), 500);
+            }
+
+            // Reset for next guess
+            currentRow++;
+            currentTile = 0;
+            currentGuess = '';
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializeBoard);
+    </script>
+</body>
+</html>
