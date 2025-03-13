@@ -29,7 +29,7 @@ class WordleUI {
         const rows = [
             ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
             ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-            ['Enter', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Backspace']
+            ['Shift', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Enter']
         ];
 
         this.keyboard.innerHTML = '';
@@ -48,11 +48,11 @@ class WordleUI {
 
             row.forEach(key => {
                 const button = document.createElement('button');
-                button.textContent = key === 'Backspace' ? '⌫' : key;
-                button.setAttribute('data-key', key);
+                button.setAttribute('data-key', key === 'Shift' ? 'Backspace' : key);
+                button.textContent = key === 'Shift' ? '⌫' : key;
                 button.className = 'keyboard-button';
                 
-                if (key === 'Enter' || key === 'Backspace') {
+                if (key === 'Enter' || key === 'Shift') {
                     button.classList.add('keyboard-button-wide');
                 }
                 
@@ -71,7 +71,7 @@ class WordleUI {
             } else if (e.key === 'Backspace') {
                 this.handleInput('Backspace');
             } else if (/^[a-zA-Z]$/.test(e.key)) {
-                this.handleInput(e.key);
+                this.handleInput(e.key.toLowerCase());
             }
         });
 
@@ -79,7 +79,8 @@ class WordleUI {
         this.keyboard.addEventListener('click', (e) => {
             const button = e.target.closest('button');
             if (!button) return;
-            this.handleInput(button.getAttribute('data-key'));
+            const key = button.getAttribute('data-key');
+            this.handleInput(key);
         });
     }
 
@@ -106,8 +107,10 @@ class WordleUI {
             if (this.game.removeLetter()) {
                 this.updateCurrentRow();
             }
-        } else if (this.game.addLetter(key)) {
-            this.updateCurrentRow();
+        } else if (/^[a-zA-Z]$/.test(key)) {
+            if (this.game.addLetter(key.toLowerCase())) {
+                this.updateCurrentRow();
+            }
         }
     }
 
@@ -127,19 +130,27 @@ class WordleUI {
         const tiles = Array.from(row.children);
         const guess = state.guesses[state.guesses.length - 1];
 
-        tiles.forEach((tile, i) => {
-            tile.textContent = guess[i].toUpperCase();
-            tile.classList.add(result[i]);
+        tiles.forEach((tile, index) => {
+            tile.textContent = guess[index].toUpperCase();
+            if (result[index] === 'correct') {
+                tile.classList.add('correct');
+            } else if (result[index] === 'present') {
+                tile.classList.add('present');
+            } else {
+                tile.classList.add('absent');
+            }
         });
 
         // Update keyboard
         const buttons = this.keyboard.getElementsByTagName('button');
-        Array.from(buttons).forEach(button => {
-            const letter = button.getAttribute('data-key').toLowerCase();
-            if (letter === guess[i]) {
-                if (result[i] === 'correct') {
+        guess.split('').forEach((letter, index) => {
+            const button = Array.from(buttons).find(b => 
+                b.getAttribute('data-key').toLowerCase() === letter
+            );
+            if (button) {
+                if (result[index] === 'correct') {
                     button.classList.add('correct');
-                } else if (result[i] === 'present' && !button.classList.contains('correct')) {
+                } else if (result[index] === 'present' && !button.classList.contains('correct')) {
                     button.classList.add('present');
                 } else if (!button.classList.contains('correct') && !button.classList.contains('present')) {
                     button.classList.add('absent');

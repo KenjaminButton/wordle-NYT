@@ -21,13 +21,17 @@ describe('WordleUI', () => {
         game = {
             MAX_ATTEMPTS: 6,
             WORD_LENGTH: 5,
-            addLetter: jest.fn(),
-            removeLetter: jest.fn(),
-            submitGuess: jest.fn(),
+            addLetter: jest.fn().mockReturnValue(true),
+            removeLetter: jest.fn().mockReturnValue(true),
+            submitGuess: jest.fn().mockReturnValue({
+                guess: 'stare',
+                result: ['correct', 'present', 'absent', 'correct', 'present']
+            }),
             getGameState: jest.fn().mockReturnValue({
-                currentRow: 0,
+                currentRow: 1,
                 currentGuess: '',
-                guesses: [],
+                guesses: ['stare'],
+                results: [['correct', 'present', 'absent', 'correct', 'present']],
                 gameOver: false,
                 targetWord: 'stare',
                 targetDefinition: 'to look fixedly or vacantly'
@@ -66,11 +70,11 @@ describe('WordleUI', () => {
             expect(secondRow[0].textContent).toBe('A');
             expect(secondRow[8].textContent).toBe('L');
 
-            // Check third row (Enter, Z-M, Backspace)
+            // Check third row (Shift, Z-M, Enter)
             const thirdRow = rows[2].getElementsByTagName('button');
             expect(thirdRow.length).toBe(9);
-            expect(thirdRow[0].textContent).toBe('Enter');
-            expect(thirdRow[8].textContent).toBe('⌫');
+            expect(thirdRow[0].textContent).toBe('⌫');
+            expect(thirdRow[8].textContent).toBe('Enter');
         });
     });
 
@@ -95,7 +99,7 @@ describe('WordleUI', () => {
             // Click letter button
             const letterButton = Array.from(buttons).find(b => b.getAttribute('data-key') === 'A');
             letterButton.click();
-            expect(game.addLetter).toHaveBeenCalledWith('A');
+            expect(game.addLetter).toHaveBeenCalledWith('a');
 
             // Click Enter button
             const enterButton = Array.from(buttons).find(b => b.getAttribute('data-key') === 'Enter');
