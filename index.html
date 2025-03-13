@@ -144,122 +144,24 @@
             </div>
         </div>
     </div>
+    <script src="game.js"></script>
+    <script src="ui.js"></script>
     <script>
-        let currentRow = 0;
-        let currentTile = 0;
-        let gameBoard;
-        let targetWord = '';
-        let currentGuess = '';
+        let game;
+        let ui;
 
-        async function initializeBoard() {
-            gameBoard = document.getElementById('board');
-            gameBoard.className = 'board';
-            
-            // Create the game board
-            for (let i = 0; i < 6; i++) {
-                const row = document.createElement('div');
-                row.className = 'row';
-                for (let j = 0; j < 5; j++) {
-                    const tile = document.createElement('div');
-                    tile.className = 'tile';
-                    row.appendChild(tile);
-                }
-                gameBoard.appendChild(row);
-            }
-
-            // Load word list and select target word
-            try {
-                const response = await fetch('lib/test.json');
-                if (!response.ok) throw new Error('Failed to load word list');
-                const wordData = await response.json();
-                const words = Object.keys(wordData);
-                if (words.length === 0) throw new Error('No words found');
-                
-                targetWord = words[Math.floor(Math.random() * words.length)].toLowerCase();
-                const definition = wordData[targetWord];
-                
-                document.getElementById('target-word').innerHTML = 
-                    `<strong>${targetWord.toUpperCase()}</strong>: ${definition}`;
-                console.log('Target word:', targetWord, 'Definition:', definition);
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('target-word').textContent = 'Error loading word';
-            }
-
-            // Add keyboard listener
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    handleKey('Enter');
-                } else if (e.key === 'Backspace') {
-                    handleKey('Backspace');
-                } else if (/^[a-zA-Z]$/.test(e.key)) {
-                    handleKey(e.key.toLowerCase());
-                }
-            });
+        async function initializeGame() {
+            game = new WordleGame();
+            await game.initialize();
+            ui = new WordleUI(game);
+            ui.updateTargetWord();
         }
 
         function handleKey(key) {
-            if (currentRow >= 6) return; // Game over
-            
-            if (key === 'Backspace') {
-                if (currentTile > 0) {
-                    currentTile--;
-                    currentGuess = currentGuess.slice(0, -1);
-                    const tile = gameBoard.children[currentRow].children[currentTile];
-                    tile.textContent = '';
-                }
-            } else if (key === 'Enter') {
-                if (currentTile === 5) {
-                    checkGuess();
-                }
-            } else if (currentTile < 5) {
-                const tile = gameBoard.children[currentRow].children[currentTile];
-                tile.textContent = key.toUpperCase();
-                currentGuess += key;
-                currentTile++;
-            }
+            ui.handleInput(key);
         }
 
-        function checkGuess() {
-            const row = gameBoard.children[currentRow];
-            const tiles = Array.from(row.children);
-            const buttons = document.getElementsByTagName('button');
-            
-            // First pass: Mark correct letters
-            for (let i = 0; i < 5; i++) {
-                const tile = tiles[i];
-                const letter = currentGuess[i];
-                const button = Array.from(buttons).find(b => b.textContent.toLowerCase() === letter);
-                
-                if (letter === targetWord[i]) {
-                    tile.classList.add('correct');
-                    if (button) button.classList.add('correct');
-                } else if (targetWord.includes(letter)) {
-                    tile.classList.add('present');
-                    if (button && !button.classList.contains('correct')) {
-                        button.classList.add('present');
-                    }
-                } else {
-                    tile.classList.add('absent');
-                    if (button) button.classList.add('absent');
-                }
-            }
-
-            // Check win/lose condition
-            if (currentGuess === targetWord) {
-                setTimeout(() => alert('Congratulations! You won!'), 500);
-            } else if (currentRow === 5) {
-                setTimeout(() => alert(`Game Over! The word was ${targetWord.toUpperCase()}`), 500);
-            }
-
-            // Reset for next guess
-            currentRow++;
-            currentTile = 0;
-            currentGuess = '';
-        }
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', initializeBoard);
+        document.addEventListener('DOMContentLoaded', initializeGame);
     </script>
 </body>
 </html>

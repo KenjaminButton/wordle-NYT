@@ -2,158 +2,172 @@
  * @jest-environment jsdom
  */
 
+const path = require('path');
+const fs = require('fs');
+
+// Load game.js content and evaluate it in this context
+const gameJsPath = path.join(__dirname, 'game.js');
+const gameJsContent = fs.readFileSync(gameJsPath, 'utf8');
+eval(gameJsContent);
+
 describe('WordleGame', () => {
     let game;
+    const testWordData = {
+        "stare": "To look fixedly",
+        "rates": "Plural of rate",
+        "tears": "Drops from eyes",
+        "tares": "Unwanted plants",
+        "stamp": "To mark with a seal"
+    };
 
     beforeEach(() => {
-        // Set up our document body
-        document.body.innerHTML = `
-            <div id="board" class="board"></div>
-        `;
-        game = new WordleGame();
-        // Mock the word list loading
-        game.targetWord = 'hello';
+        game = new WordleGame(testWordData);
     });
 
-    // Test game board initialization
-    describe('Game Board Initialization', () => {
-        test('should create 6x5 game board with focusable tiles', () => {
-            const rows = document.querySelectorAll('.row');
-            expect(rows.length).toBe(6);
-            
-            rows.forEach(row => {
-                const tiles = row.querySelectorAll('.tile');
-                expect(tiles.length).toBe(5);
-                tiles.forEach(tile => {
-                    expect(tile.tabIndex).toBe(0);
-                });
-            });
+    describe('Game Initialization', () => {
+        test('should initialize with default values', () => {
+            expect(game.WORD_LENGTH).toBe(5);
+            expect(game.MAX_ATTEMPTS).toBe(6);
+            expect(game.currentRow).toBe(0);
+            expect(game.currentGuess).toBe('');
+            expect(game.gameOver).toBe(false);
+            expect(game.guesses).toEqual([]);
         });
 
-        test('should focus first tile on start', () => {
-            const firstTile = document.querySelector('.tile');
-            expect(document.activeElement).toBe(firstTile);
+        test('should select a valid word from wordData', () => {
+            const { word, definition } = game.selectNewWord();
+            expect(Object.keys(testWordData)).toContain(word);
+            expect(definition).toBe(testWordData[word]);
+        });
+
+        test('should throw error if no words available', () => {
+            game = new WordleGame({});
+            expect(() => game.selectNewWord()).toThrow('No words available');
         });
     });
 
-    // Test tile focus
-    describe('Tile Focus', () => {
-        test('should focus tile on click', () => {
-            const secondTile = document.querySelector('[data-row="0"][data-col="1"]');
-            secondTile.click();
-            expect(document.activeElement).toBe(secondTile);
-            expect(game.activeCol).toBe(1);
-        });
-
-        test('should move focus with arrow keys', () => {
-            // Start at first tile
-            const firstTile = document.querySelector('[data-row="0"][data-col="0"]');
-            firstTile.focus();
-
-            // Press right arrow
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-            const secondTile = document.querySelector('[data-row="0"][data-col="1"]');
-            expect(document.activeElement).toBe(secondTile);
-
-            // Press left arrow
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-            expect(document.activeElement).toBe(firstTile);
-        });
-
-        test('should not move focus beyond word length', () => {
-            const lastTile = document.querySelector('[data-row="0"][data-col="4"]');
-            lastTile.focus();
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-            expect(document.activeElement).toBe(lastTile);
-        });
-
-        test('should move focus to next letter position after input', () => {
-            game.addLetter('h');
-            const secondTile = document.querySelector('[data-row="0"][data-col="1"]');
-            expect(document.activeElement).toBe(secondTile);
-        });
-
-        test('should move focus to previous letter position after backspace', () => {
-            // Type 'he'
-            game.addLetter('h');
-            game.addLetter('e');
-            
-            // Press backspace
-            game.removeLetter();
-            
-            const firstTile = document.querySelector('[data-row="0"][data-col="0"]');
-            expect(document.activeElement).toBe(firstTile);
-        });
-
-        test('should move focus to next row after submitting guess', () => {
-            // Type 'wrong'
-            'wrong'.split('').forEach(letter => game.addLetter(letter));
-            game.submitGuess();
-            
-            const nextRowFirstTile = document.querySelector('[data-row="1"][data-col="0"]');
-            expect(document.activeElement).toBe(nextRowFirstTile);
-        });
-    });
-
-    // Test letter input
     describe('Letter Input', () => {
         test('should add letter to current guess', () => {
-            game.addLetter('h');
-            expect(game.currentGuess).toBe('h');
-            const firstTile = document.querySelector('.tile');
-            expect(firstTile.textContent).toBe('h');
+            expect(game.addLetter('s')).toBe(true);
+            expect(game.currentGuess).toBe('s');
         });
 
-        test('should not add more than 5 letters', () => {
-            'hello!'.split('').forEach(letter => game.addLetter(letter));
-            expect(game.currentGuess.length).toBe(5);
-            expect(game.currentGuess).toBe('hello');
+        test('should not add letter if guess is full', () => {
+            game.addLetter('s');
+            game.addLetter('t');
+            game.addLetter('a');
+            game.addLetter('r');
+            game.addLetter('e');
+            expect(game.addLetter('s')).toBe(false);
+            expect(game.currentGuess).toBe('stare');
         });
 
-        test('should remove last letter when backspace is pressed', () => {
-            'he'.split('').forEach(letter => game.addLetter(letter));
-            game.removeLetter();
-            expect(game.currentGuess).toBe('h');
+        test('should remove last letter', () => {
+            game.addLetter('s');
+            expect(game.removeLetter()).toBe(true);
+            expect(game.currentGuess).toBe('');
+        });
+
+        test('should not remove letter from empty guess', () => {
+            expect(game.removeLetter()).toBe(false);
         });
     });
 
-    // Test guess submission
-    describe('Guess Submission', () => {
-        test('should correctly mark exact matches', () => {
-            'hello'.split('').forEach(letter => game.addLetter(letter));
+    describe('Guess Checking', () => {
+        beforeEach(() => {
+            game.targetWord = 'stare';
+        });
+
+        test('should correctly identify all correct letters', () => {
+            const result = game.checkGuess('stare');
+            expect(result).toEqual(['correct', 'correct', 'correct', 'correct', 'correct']);
+        });
+
+        test('should identify present but misplaced letters', () => {
+            const result = game.checkGuess('rates');
+            // All letters are present but in different positions
+            expect(result).toEqual(['present', 'present', 'present', 'present', 'present']);
+        });
+
+        test('should identify absent letters', () => {
+            const result = game.checkGuess('stamp');
+            // 's', 't', 'a' are in stare, 'm', 'p' are absent
+            expect(result).toEqual(['correct', 'correct', 'correct', 'absent', 'absent']);
+        });
+
+        test('should handle duplicate letters correctly', () => {
+            game.targetWord = 'tares';
+            const result = game.checkGuess('stare');
+            // All letters are present but in different positions
+            expect(result).toEqual(['present', 'present', 'present', 'present', 'present']);
+        });
+    });
+
+    describe('Game State', () => {
+        test('should track game state correctly', () => {
+            game.targetWord = 'stare';
+            game.addLetter('s');
+            game.addLetter('t');
+            game.addLetter('a');
+            game.addLetter('r');
+            game.addLetter('e');
+            game.submitGuess();
+
+            const state = game.getGameState();
+            expect(state.currentRow).toBe(1);
+            expect(state.guesses).toEqual(['stare']);
+            expect(state.gameOver).toBe(true);
+        });
+
+        test('should end game after correct guess', () => {
+            game.targetWord = 'stare';
+            game.addLetter('s');
+            game.addLetter('t');
+            game.addLetter('a');
+            game.addLetter('r');
+            game.addLetter('e');
             game.submitGuess();
             
-            const tiles = document.querySelectorAll('.tile');
-            for (let i = 0; i < 5; i++) {
-                expect(tiles[i].classList.contains('correct')).toBe(true);
+            expect(game.gameOver).toBe(true);
+        });
+
+        test('should end game after max attempts', () => {
+            game.targetWord = 'stare';
+            const wrongGuess = 'rates';
+            
+            for (let i = 0; i < game.MAX_ATTEMPTS; i++) {
+                for (const letter of wrongGuess) {
+                    game.addLetter(letter);
+                }
+                game.submitGuess();
             }
+            
+            expect(game.gameOver).toBe(true);
+            expect(game.currentRow).toBe(6);
         });
 
-        test('should correctly mark present letters in wrong position', () => {
-            'ehllo'.split('').forEach(letter => game.addLetter(letter));
-            game.submitGuess();
-            
-            const tiles = document.querySelectorAll('.tile');
-            expect(tiles[0].classList.contains('present')).toBe(true);
-            expect(tiles[1].classList.contains('present')).toBe(true);
+        test('should not accept guesses after game over', () => {
+            game.gameOver = true;
+            expect(game.addLetter('s')).toBe(false);
+            expect(game.submitGuess()).toBeNull();
+        });
+    });
+
+    describe('Input Validation', () => {
+        test('should only accept letters', () => {
+            expect(game.addLetter('1')).toBe(false);
+            expect(game.addLetter('!')).toBe(false);
+            expect(game.addLetter('a')).toBe(true);
         });
 
-        test('should correctly mark absent letters', () => {
-            'world'.split('').forEach(letter => game.addLetter(letter));
-            game.submitGuess();
-            
-            const tiles = document.querySelectorAll('.tile');
-            expect(tiles[0].classList.contains('absent')).toBe(true);
-            expect(tiles[1].classList.contains('absent')).toBe(true);
+        test('should convert input to lowercase', () => {
+            game.addLetter('S');
+            expect(game.currentGuess).toBe('s');
         });
 
         test('should not submit incomplete guess', () => {
-            'hel'.split('').forEach(letter => game.addLetter(letter));
-            game.submitGuess();
-            
-            const tiles = document.querySelectorAll('.tile');
-            expect(tiles[0].classList.contains('correct')).toBe(false);
-            expect(game.currentAttempt).toBe(0);
+            game.addLetter('s');
+            expect(game.submitGuess()).toBeNull();
         });
     });
 });
