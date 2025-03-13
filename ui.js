@@ -204,6 +204,12 @@ class WordleUI {
     }
 }
 
+// Export for Node.js
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WordleUI;
+}
+
+// Export for browser
 if (typeof window !== 'undefined') {
     window.WordleUI = WordleUI;
 }
