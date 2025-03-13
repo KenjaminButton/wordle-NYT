@@ -153,6 +153,67 @@ h1 {
     background-color: #f0f0f0;
 }
 
+.iphone-keyboard {
+    background-color: #d1d5db;
+    padding: 8px;
+    border-radius: 10px;
+    margin-top: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.keyboard-row {
+    display: flex;
+    justify-content: center;
+    margin: 4px 0;
+    gap: 6px;
+}
+
+.iphone-key {
+    min-width: 30px;
+    height: 45px;
+    border-radius: 5px;
+    background: linear-gradient(to bottom, #ffffff 0%, #f7f7f7 100%);
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    font-size: 1.2em;
+    font-weight: 400;
+    color: #000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    padding: 0 10px;
+    text-transform: uppercase;
+}
+
+.iphone-key:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.keyboard-button-wide {
+    min-width: 60px;
+    font-size: 0.9em;
+    background: linear-gradient(to bottom, #b5b5b5 0%, #a1a1a1 100%);
+    color: #ffffff;
+}
+
+.iphone-key.correct {
+    background-color: var(--correct-color);
+    color: white;
+}
+
+.iphone-key.present {
+    background-color: var(--present-color);
+    color: white;
+}
+
+.iphone-key.absent {
+    background-color: var(--absent-color);
+    color: white;
+}
+
 @keyframes slideIn {
     from {
         transform: translate(-50%, -100%);

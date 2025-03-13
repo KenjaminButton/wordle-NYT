@@ -5,12 +5,13 @@ class WordleUI {
         this.keyboard = document.getElementById('keyboard');
         this.targetWordDisplay = document.getElementById('target-word');
         
-        this.createBoard();
-        this.setupKeyboardListeners();
+        this.setupBoard();
+        this.setupKeyboard();
         this.setupEventListeners();
     }
 
-    createBoard() {
+    setupBoard() {
+        this.board.innerHTML = '';
         for (let i = 0; i < this.game.MAX_ATTEMPTS; i++) {
             const row = document.createElement('div');
             row.className = 'row';
@@ -23,7 +24,46 @@ class WordleUI {
         }
     }
 
-    setupKeyboardListeners() {
+    setupKeyboard() {
+        // iPhone-style keyboard layout
+        const rows = [
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+            ['Enter', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Backspace']
+        ];
+
+        this.keyboard.innerHTML = '';
+        this.keyboard.className = 'iphone-keyboard';
+
+        rows.forEach((row, rowIndex) => {
+            const rowElement = document.createElement('div');
+            rowElement.className = 'keyboard-row';
+            
+            // Add left spacing for QWERTY rows to match iPhone layout
+            if (rowIndex === 1) { // A-L row
+                rowElement.style.paddingLeft = '5%';
+            } else if (rowIndex === 2) { // Z-M row
+                rowElement.style.paddingLeft = '0';
+            }
+
+            row.forEach(key => {
+                const button = document.createElement('button');
+                button.textContent = key === 'Backspace' ? '⌫' : key;
+                button.setAttribute('data-key', key);
+                button.className = 'keyboard-button';
+                
+                if (key === 'Enter' || key === 'Backspace') {
+                    button.classList.add('keyboard-button-wide');
+                }
+                
+                // Add iPhone-style button appearance
+                button.classList.add('iphone-key');
+                
+                rowElement.appendChild(button);
+            });
+            this.keyboard.appendChild(rowElement);
+        });
+
         // Physical keyboard
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -39,7 +79,7 @@ class WordleUI {
         this.keyboard.addEventListener('click', (e) => {
             const button = e.target.closest('button');
             if (!button) return;
-            this.handleInput(button.textContent);
+            this.handleInput(button.getAttribute('data-key'));
         });
     }
 
@@ -95,7 +135,7 @@ class WordleUI {
         // Update keyboard
         const buttons = this.keyboard.getElementsByTagName('button');
         Array.from(buttons).forEach(button => {
-            const letter = button.textContent.toLowerCase();
+            const letter = button.getAttribute('data-key').toLowerCase();
             if (letter === guess[i]) {
                 if (result[i] === 'correct') {
                     button.classList.add('correct');
