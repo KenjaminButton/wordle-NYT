@@ -86,3 +86,80 @@ h1 {
     border-color: var(--absent-color);
     color: white;
 }
+
+.win-notification,
+.lose-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    text-align: center;
+    animation: slideIn 0.5s ease-out;
+}
+
+.win-notification {
+    background-color: #6aaa64;
+    color: white;
+}
+
+.lose-notification {
+    background-color: #dc3545;
+    color: white;
+}
+
+.win-notification h2,
+.lose-notification h2 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+}
+
+.win-notification p,
+.lose-notification p {
+    margin: 5px 0;
+    font-size: 16px;
+}
+
+.win-notification button,
+.lose-notification button {
+    margin-top: 15px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.win-notification button {
+    background-color: white;
+    color: #6aaa64;
+}
+
+.lose-notification button {
+    background-color: white;
+    color: #dc3545;
+}
+
+.win-notification button:hover {
+    background-color: #f0f0f0;
+}
+
+.lose-notification button:hover {
+    background-color: #f0f0f0;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translate(-50%, -100%);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, -50%);
+        opacity: 1;
+    }
+}

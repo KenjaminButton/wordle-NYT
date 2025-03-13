@@ -9,6 +9,8 @@ class WordleGame {
         this.gameOver = false;
         this.wordData = wordData;
         this.guesses = [];
+        this.gameWon = false;
+        this.gameLost = false;
     }
 
     async initialize() {
@@ -62,8 +64,32 @@ class WordleGame {
         this.guesses.push(this.currentGuess);
         this.currentRow++;
         
-        if (this.currentGuess === this.targetWord || this.currentRow >= this.MAX_ATTEMPTS) {
+        if (this.currentGuess === this.targetWord) {
             this.gameOver = true;
+            this.gameWon = true;
+            if (typeof window !== 'undefined') {
+                const winEvent = new CustomEvent('wordleGameWon', {
+                    detail: {
+                        word: this.targetWord,
+                        attempts: this.currentRow,
+                        definition: this.targetDefinition
+                    }
+                });
+                window.dispatchEvent(winEvent);
+            }
+        } else if (this.currentRow >= this.MAX_ATTEMPTS) {
+            this.gameOver = true;
+            this.gameLost = true;
+            if (typeof window !== 'undefined') {
+                const loseEvent = new CustomEvent('wordleGameLost', {
+                    detail: {
+                        word: this.targetWord,
+                        definition: this.targetDefinition,
+                        attempts: this.MAX_ATTEMPTS
+                    }
+                });
+                window.dispatchEvent(loseEvent);
+            }
         }
 
         this.currentGuess = '';
@@ -104,6 +130,8 @@ class WordleGame {
             currentGuess: this.currentGuess,
             guesses: [...this.guesses],
             gameOver: this.gameOver,
+            gameWon: this.gameWon,
+            gameLost: this.gameLost,
             targetWord: this.targetWord,
             targetDefinition: this.targetDefinition
         };
@@ -118,9 +146,3 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.WordleGame = WordleGame;
 }
-
-// Start game when page loads
-document.addEventListener('DOMContentLoaded', async () => {
-    const game = new WordleGame();
-    await game.initialize();
-});

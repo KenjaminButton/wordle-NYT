@@ -2,13 +2,7 @@
  * @jest-environment jsdom
  */
 
-const path = require('path');
-const fs = require('fs');
-
-// Load game.js content and evaluate it in this context
-const gameJsPath = path.join(__dirname, 'game.js');
-const gameJsContent = fs.readFileSync(gameJsPath, 'utf8');
-eval(gameJsContent);
+const WordleGame = require('./game.js');
 
 describe('WordleGame', () => {
     let game;
@@ -22,6 +16,10 @@ describe('WordleGame', () => {
 
     beforeEach(() => {
         game = new WordleGame(testWordData);
+        // Reset the fetch mock
+        global.fetch.mockClear();
+        // Setup window event listener spy
+        window.dispatchEvent = jest.fn();
     });
 
     describe('Game Initialization', () => {
@@ -43,6 +41,32 @@ describe('WordleGame', () => {
         test('should throw error if no words available', () => {
             game = new WordleGame({});
             expect(() => game.selectNewWord()).toThrow('No words available');
+        });
+
+        test('should initialize by fetching words if none provided', async () => {
+            game = new WordleGame();
+            await game.initialize();
+            expect(fetch).toHaveBeenCalledWith('lib/test.json');
+            expect(game.wordData).toEqual({
+                "stare": "To look fixedly or vacantly",
+                "light": "The natural agent that stimulates sight",
+                "brain": "The organ inside the head"
+            });
+        });
+
+        test('should handle fetch failure gracefully', async () => {
+            global.fetch.mockImplementationOnce(() => Promise.reject('API is down'));
+            game = new WordleGame();
+            await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+        });
+
+        test('should handle invalid response gracefully', async () => {
+            global.fetch.mockImplementationOnce(() => Promise.resolve({
+                ok: false,
+                status: 404
+            }));
+            game = new WordleGame();
+            await expect(game.initialize()).rejects.toThrow('Failed to load word list');
         });
     });
 
@@ -150,6 +174,135 @@ describe('WordleGame', () => {
             game.gameOver = true;
             expect(game.addLetter('s')).toBe(false);
             expect(game.submitGuess()).toBeNull();
+        });
+    });
+
+    describe('Game End Conditions', () => {
+        test('should emit win event when word is guessed correctly', () => {
+            game.targetWord = 'stare';
+            game.addLetter('s');
+            game.addLetter('t');
+            game.addLetter('a');
+            game.addLetter('r');
+            game.addLetter('e');
+            game.submitGuess();
+
+            expect(window.dispatchEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'wordleGameWon',
+                    detail: expect.objectContaining({
+                        word: 'stare',
+                        attempts: 1,
+                        definition: expect.any(String)
+                    })
+                })
+            );
+            expect(game.gameWon).toBe(true);
+            expect(game.gameLost).toBe(false);
+        });
+
+        test('should emit lose event after max attempts', () => {
+            game.targetWord = 'stare';
+            const wrongGuess = 'rates';
+            
+            // Make MAX_ATTEMPTS wrong guesses
+            for (let i = 0; i < game.MAX_ATTEMPTS; i++) {
+                for (const letter of wrongGuess) {
+                    game.addLetter(letter);
+                }
+                game.submitGuess();
+            }
+            
+            expect(window.dispatchEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'wordleGameLost',
+                    detail: expect.objectContaining({
+                        word: 'stare',
+                        attempts: game.MAX_ATTEMPTS,
+                        definition: expect.any(String)
+                    })
+                })
+            );
+            expect(game.gameWon).toBe(false);
+            expect(game.gameLost).toBe(true);
+        });
+
+        test('should not emit lose event before max attempts', () => {
+            game.targetWord = 'stare';
+            const wrongGuess = 'rates';
+            
+            // Make MAX_ATTEMPTS - 1 wrong guesses
+            for (let i = 0; i < game.MAX_ATTEMPTS - 1; i++) {
+                for (const letter of wrongGuess) {
+                    game.addLetter(letter);
+                }
+                game.submitGuess();
+            }
+            
+            expect(window.dispatchEvent).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'wordleGameLost'
+                })
+            );
+            expect(game.gameWon).toBe(false);
+            expect(game.gameLost).toBe(false);
+            expect(game.gameOver).toBe(false);
+        });
+
+        test('should track game state correctly after loss', () => {
+            game.targetWord = 'stare';
+            const wrongGuess = 'rates';
+            
+            // Make MAX_ATTEMPTS wrong guesses
+            for (let i = 0; i < game.MAX_ATTEMPTS; i++) {
+                for (const letter of wrongGuess) {
+                    game.addLetter(letter);
+                }
+                game.submitGuess();
+            }
+            
+            const state = game.getGameState();
+            expect(state.gameOver).toBe(true);
+            expect(state.gameLost).toBe(true);
+            expect(state.gameWon).toBe(false);
+            expect(state.currentRow).toBe(game.MAX_ATTEMPTS);
+        });
+    });
+
+    describe('Game Win Condition', () => {
+        test('should emit win event when word is guessed correctly', () => {
+            game.targetWord = 'stare';
+            game.addLetter('s');
+            game.addLetter('t');
+            game.addLetter('a');
+            game.addLetter('r');
+            game.addLetter('e');
+            game.submitGuess();
+
+            expect(window.dispatchEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'wordleGameWon',
+                    detail: expect.objectContaining({
+                        word: 'stare',
+                        attempts: 1,
+                        definition: expect.any(String)
+                    })
+                })
+            );
+            expect(game.gameWon).toBe(true);
+        });
+
+        test('should not emit win event for incorrect guess', () => {
+            game.targetWord = 'stare';
+            game.addLetter('t');
+            game.addLetter('e');
+            game.addLetter('a');
+            game.addLetter('r');
+            game.addLetter('s');
+            game.submitGuess();
+
+            expect(window.dispatchEvent).not.toHaveBeenCalled();
+            expect(game.gameWon).toBe(false);
         });
     });
 

@@ -7,6 +7,7 @@ class WordleUI {
         
         this.createBoard();
         this.setupKeyboardListeners();
+        this.setupEventListeners();
     }
 
     createBoard() {
@@ -39,6 +40,18 @@ class WordleUI {
             const button = e.target.closest('button');
             if (!button) return;
             this.handleInput(button.textContent);
+        });
+    }
+
+    setupEventListeners() {
+        // Listen for win event
+        window.addEventListener('wordleGameWon', (e) => {
+            this.showWinNotification(e.detail);
+        });
+
+        // Listen for lose event
+        window.addEventListener('wordleGameLost', (e) => {
+            this.showLoseNotification(e.detail);
         });
     }
 
@@ -109,6 +122,57 @@ class WordleUI {
         const state = this.game.getGameState();
         this.targetWordDisplay.innerHTML = 
             `<strong>${state.targetWord.toUpperCase()}</strong>: ${state.targetDefinition}`;
+    }
+
+    showWinNotification({ word, attempts, definition }) {
+        this.removeExistingNotifications();
+
+        const notification = document.createElement('div');
+        notification.className = 'win-notification';
+        notification.innerHTML = `
+            <h2>🎉 CONGRATULATIONS! 🎉</h2>
+            <p>You won in ${attempts} ${attempts === 1 ? 'try' : 'tries'}!</p>
+            <p>The word was: ${word.toUpperCase()}</p>
+            <p><em>${definition}</em></p>
+            <button onclick="this.parentElement.remove()">Close</button>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    showLoseNotification({ word, definition }) {
+        this.removeExistingNotifications();
+
+        const notification = document.createElement('div');
+        notification.className = 'lose-notification';
+        notification.innerHTML = `
+            <h2>😔 GAME OVER!</h2>
+            <p>Better luck next time!</p>
+            <p>The word was: ${word.toUpperCase()}</p>
+            <p><em>${definition}</em></p>
+            <button onclick="this.parentElement.remove()">Close</button>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    removeExistingNotifications() {
+        const existingWin = document.querySelector('.win-notification');
+        const existingLose = document.querySelector('.lose-notification');
+        if (existingWin) existingWin.remove();
+        if (existingLose) existingLose.remove();
     }
 }
 
