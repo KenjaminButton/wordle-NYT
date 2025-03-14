@@ -1,215 +1,287 @@
 class WordleUI {
     constructor(game) {
         this.game = game;
+        this.currentRow = 0;
+        this.currentTile = 0;
         this.board = document.getElementById('board');
         this.keyboard = document.getElementById('keyboard');
-        this.targetWordDisplay = document.getElementById('target-word');
+        this.definitionContainer = document.getElementById('definition-container');
         
-        this.setupBoard();
-        this.setupKeyboard();
-        this.setupEventListeners();
+        console.log('UI Elements:', {
+            board: !!this.board,
+            keyboard: !!this.keyboard,
+            definitionContainer: !!this.definitionContainer
+        });
+        
+        // Initialize the UI
+        if (this.board && this.keyboard && this.definitionContainer) {
+            this.setupBoard();
+            this.setupKeyboard();
+            this.setupEventListeners();
+            
+            // Show initial definition
+            const gameState = this.game.getGameState();
+            if (gameState && gameState.targetDefinition) {
+                console.log('Initial definition available:', gameState.targetDefinition);
+                this.updateDefinition(gameState.targetDefinition);
+            }
+        } else {
+            console.warn('Required DOM elements not found');
+        }
+
+        // Listen for word selection events
+        window.addEventListener('wordSelected', (event) => {
+            console.log('Word selection event received:', event.detail);
+            if (event.detail) {
+                this.updateDefinition(event.detail.definition);
+            }
+        });
+
+        // Listen for game end events
+        window.addEventListener('wordleGameWon', (event) => {
+            if (event.detail) {
+                window.alert(`Congratulations! You won in ${event.detail.attempts} attempts!\nWord: ${event.detail.word}\nDefinition: ${event.detail.definition}`);
+            }
+        });
+
+        window.addEventListener('wordleGameLost', (event) => {
+            if (event.detail) {
+                window.alert(`Game Over! The word was: ${event.detail.word}\nDefinition: ${event.detail.definition}`);
+            }
+        });
     }
 
     setupBoard() {
+        if (!this.board) return;
+        
         this.board.innerHTML = '';
-        for (let i = 0; i < this.game.MAX_ATTEMPTS; i++) {
-            const row = document.createElement('div');
-            row.className = 'row';
-            for (let j = 0; j < this.game.WORD_LENGTH; j++) {
+        
+        for (let i = 0; i < 6; i++) {
+            const boardRow = document.createElement('div');
+            boardRow.className = 'board-row';
+            
+            for (let j = 0; j < 5; j++) {
                 const tile = document.createElement('div');
                 tile.className = 'tile';
-                row.appendChild(tile);
+                boardRow.appendChild(tile);
             }
-            this.board.appendChild(row);
+            this.board.appendChild(boardRow);
         }
     }
 
     setupKeyboard() {
-        // iPhone-style keyboard layout
+        if (!this.keyboard) return;
+        
+        this.keyboard.innerHTML = '';
+
         const rows = [
-            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-            ['Enter', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Backspace']
+            ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+            ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+            ['▲', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '⌫'],
+            ['123', '☺', 'space', 'return']
         ];
 
-        this.keyboard.innerHTML = '';
-        this.keyboard.className = 'iphone-keyboard';
-
-        rows.forEach((row, rowIndex) => {
-            const rowElement = document.createElement('div');
-            rowElement.className = 'keyboard-row';
-            
-            // Add left spacing for QWERTY rows to match iPhone layout
-            if (rowIndex === 1) { // A-L row
-                rowElement.style.paddingLeft = '5%';
-            } else if (rowIndex === 2) { // Z-M row
-                rowElement.style.paddingLeft = '0';
-            }
+        rows.forEach(row => {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'keyboard-row';
 
             row.forEach(key => {
                 const button = document.createElement('button');
-                button.textContent = key === 'Backspace' ? '⌫' : key;
+                button.type = 'button';
+                button.textContent = key;
                 button.setAttribute('data-key', key);
-                button.className = 'keyboard-button';
-                
-                if (key === 'Enter' || key === 'Backspace') {
-                    button.classList.add('keyboard-button-wide');
+
+                if (key === '▲' || key === '123' || key === '☺') {
+                    button.className = 'arrow-key';
+                    button.disabled = true;
+                } else if (key === '⌫') {
+                    button.className = 'arrow-key';
+                } else if (key === 'space') {
+                    button.className = 'space-key';
+                } else if (key === 'return') {
+                    button.className = 'return-key';
                 }
-                
-                // Add iPhone-style button appearance
-                button.classList.add('iphone-key');
-                
-                rowElement.appendChild(button);
+
+                rowDiv.appendChild(button);
             });
-            this.keyboard.appendChild(rowElement);
-        });
 
-        // Physical keyboard
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                this.handleInput('Enter');
-            } else if (e.key === 'Backspace') {
-                this.handleInput('Backspace');
-            } else if (/^[a-zA-Z]$/.test(e.key)) {
-                this.handleInput(e.key);
-            }
-        });
-
-        // On-screen keyboard
-        this.keyboard.addEventListener('click', (e) => {
-            const button = e.target.closest('button');
-            if (!button) return;
-            this.handleInput(button.getAttribute('data-key'));
+            this.keyboard.appendChild(rowDiv);
         });
     }
 
     setupEventListeners() {
-        // Listen for win event
-        window.addEventListener('wordleGameWon', (e) => {
-            this.showWinNotification(e.detail);
+        if (!this.keyboard || !this.board) return;
+
+        // Keyboard events
+        document.addEventListener('keydown', (e) => {
+            if (this.isGameOver()) return;
+            
+            let key = e.key.toLowerCase();
+            if (key === 'enter') {
+                key = 'return';
+            } else if (key === 'backspace' || key === 'delete') {
+                key = '⌫';
+            } else if (key === ' ') {
+                key = 'space';
+                e.preventDefault(); // Prevent page scroll
+            }
+            
+            this.handleInput(key);
         });
 
-        // Listen for lose event
-        window.addEventListener('wordleGameLost', (e) => {
-            this.showLoseNotification(e.detail);
+        // Mouse clicks
+        this.keyboard.addEventListener('click', (e) => {
+            if (this.isGameOver()) return;
+            
+            const button = e.target.closest('button');
+            if (!button) return;
+            
+            const key = button.getAttribute('data-key');
+            this.handleInput(key);
         });
+
+        // Touch events
+        this.keyboard.addEventListener('touchend', (e) => {
+            if (this.isGameOver()) return;
+            
+            const button = e.target.closest('button');
+            if (!button) return;
+            
+            e.preventDefault(); // Prevent double-firing with click event
+            const key = button.getAttribute('data-key');
+            if (key && this.game && typeof this.game.addLetter === 'function') {
+                this.game.addLetter(key);
+            }
+        }, { passive: false }); // Allow preventDefault
+
+        // Handle screen rotation
+        window.addEventListener('resize', () => {
+            this.handleScreenRotation();
+        });
+        this.handleScreenRotation(); // Initial setup
+    }
+
+    handleScreenRotation() {
+        if (this.keyboard) {
+            const isLandscape = window.innerWidth > window.innerHeight;
+            this.keyboard.style.maxWidth = isLandscape ? '800px' : '100%'; // Match test expectations
+        }
+    }
+
+    isGameOver() {
+        const state = this.game.getGameState();
+        return state && state.gameOver;
     }
 
     handleInput(key) {
-        if (key === 'Enter') {
+        if (!this.game || !this.board || this.isGameOver()) return;
+
+        if (key === 'return') {
             const result = this.game.submitGuess();
             if (result) {
                 this.updateBoard(result);
-                this.checkGameEnd();
+                this.updateKeyboardColors(this.game.getGameState().guesses.slice(-1)[0], result);
             }
-        } else if (key === 'Backspace' || key === '⌫') {
+        } else if (key === '⌫') {
             if (this.game.removeLetter()) {
                 this.updateCurrentRow();
             }
-        } else if (this.game.addLetter(key)) {
-            this.updateCurrentRow();
+        } else if (key === 'space') {
+            return;
+        } else if (/^[a-zñ]$/.test(key)) {
+            if (this.game.addLetter(key)) {
+                this.updateCurrentRow();
+            }
         }
     }
 
     updateCurrentRow() {
-        const state = this.game.getGameState();
-        const tiles = this.board.children[state.currentRow].children;
-        const guess = state.currentGuess.padEnd(this.game.WORD_LENGTH);
-        
-        for (let i = 0; i < this.game.WORD_LENGTH; i++) {
-            tiles[i].textContent = guess[i].toUpperCase();
+        if (!this.game || !this.board) return;
+
+        try {
+            const state = this.game.getGameState();
+            if (!state) return;
+
+            const row = this.board.children[state.currentRow];
+            if (!row) return;
+
+            const tiles = row.children;
+            const guess = state.currentGuess.padEnd(5);
+            
+            for (let i = 0; i < 5; i++) {
+                if (tiles[i]) {
+                    tiles[i].textContent = guess[i].toUpperCase();
+                }
+            }
+        } catch (error) {
+            console.error('Error updating current row:', error);
         }
     }
 
     updateBoard(result) {
-        const state = this.game.getGameState();
-        const row = this.board.children[state.currentRow - 1];
-        const tiles = Array.from(row.children);
-        const guess = state.guesses[state.guesses.length - 1];
+        if (!this.game || !this.board || !result) return;
 
-        tiles.forEach((tile, i) => {
-            tile.textContent = guess[i].toUpperCase();
-            tile.classList.add(result[i]);
-        });
+        try {
+            const state = this.game.getGameState();
+            if (!state) return;
 
-        // Update keyboard
-        const buttons = this.keyboard.getElementsByTagName('button');
-        Array.from(buttons).forEach(button => {
-            const letter = button.getAttribute('data-key').toLowerCase();
-            if (letter === guess[i]) {
-                if (result[i] === 'correct') {
-                    button.classList.add('correct');
-                } else if (result[i] === 'present' && !button.classList.contains('correct')) {
-                    button.classList.add('present');
-                } else if (!button.classList.contains('correct') && !button.classList.contains('present')) {
-                    button.classList.add('absent');
-                }
-            }
-        });
-    }
+            const row = this.board.children[state.currentRow - 1];
+            if (!row) return;
 
-    checkGameEnd() {
-        const state = this.game.getGameState();
-        if (state.gameOver) {
-            const won = state.guesses[state.guesses.length - 1] === state.targetWord;
-            setTimeout(() => {
-                alert(won ? 'Congratulations! You won!' : `Game Over! The word was ${state.targetWord.toUpperCase()}`);
-            }, 500);
+            const guess = state.guesses[state.guesses.length - 1];
+            if (!guess) return;
+
+            Array.from(row.children).forEach((tile, i) => {
+                tile.textContent = guess[i].toUpperCase();
+                tile.classList.remove('correct', 'present', 'absent');
+                tile.classList.add(result[i]);
+            });
+        } catch (error) {
+            console.error('Error updating board:', error);
         }
     }
 
-    updateTargetWord() {
-        const state = this.game.getGameState();
-        this.targetWordDisplay.innerHTML = 
-            `<strong>${state.targetWord.toUpperCase()}</strong>: ${state.targetDefinition}`;
+    updateKeyboardColors(guess, result) {
+        if (!this.keyboard || !guess || !result) return;
+
+        try {
+            guess.split('').forEach((letter, i) => {
+                const button = this.keyboard.querySelector(`button[data-key="${letter}"]`);
+                if (button) {
+                    if (result[i] === 'correct') {
+                        button.classList.add('correct');
+                    } else if (result[i] === 'present' && !button.classList.contains('correct')) {
+                        button.classList.add('present');
+                    } else if (!button.classList.contains('correct') && !button.classList.contains('present')) {
+                        button.classList.add('absent');
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error updating keyboard colors:', error);
+        }
     }
 
-    showWinNotification({ word, attempts, definition }) {
-        this.removeExistingNotifications();
-
-        const notification = document.createElement('div');
-        notification.className = 'win-notification';
-        notification.innerHTML = `
-            <h2>🎉 CONGRATULATIONS! 🎉</h2>
-            <p>You won in ${attempts} ${attempts === 1 ? 'try' : 'tries'}!</p>
-            <p>The word was: ${word.toUpperCase()}</p>
-            <p><em>${definition}</em></p>
-            <button onclick="this.parentElement.remove()">Close</button>
-        `;
-
-        document.body.appendChild(notification);
-    }
-
-    showLoseNotification({ word, definition }) {
-        this.removeExistingNotifications();
-
-        const notification = document.createElement('div');
-        notification.className = 'lose-notification';
-        notification.innerHTML = `
-            <h2>😔 GAME OVER!</h2>
-            <p>Better luck next time!</p>
-            <p>The word was: ${word.toUpperCase()}</p>
-            <p><em>${definition}</em></p>
-            <button onclick="this.parentElement.remove()">Close</button>
-        `;
-
-        document.body.appendChild(notification);
-    }
-
-    removeExistingNotifications() {
-        const existingWin = document.querySelector('.win-notification');
-        const existingLose = document.querySelector('.lose-notification');
-        if (existingWin) existingWin.remove();
-        if (existingLose) existingLose.remove();
+    updateDefinition(definition) {
+        console.log('Updating definition:', definition);
+        if (this.definitionContainer) {
+            if (definition) {
+                this.definitionContainer.textContent = `Hint: ${definition}`;
+                this.definitionContainer.style.display = 'block';
+                console.log('Definition updated successfully');
+            } else {
+                this.definitionContainer.textContent = '';
+                this.definitionContainer.style.display = 'none';
+                console.log('Definition hidden - no definition available');
+            }
+        } else {
+            console.warn('Could not update definition: container not found');
+        }
     }
 }
 
-// Export for Node.js
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = WordleUI;
-}
-
-// Export for browser
-if (typeof window !== 'undefined') {
+} else if (typeof window !== 'undefined') {
     window.WordleUI = WordleUI;
 }
