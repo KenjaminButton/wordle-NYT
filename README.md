@@ -34,13 +34,13 @@ A modern, web-based implementation of the New York Times' Wordle game. This proj
 
 <div align="center">
   <h3>Game Start</h3>
-  <img src="images/1.jpg" alt="Game Start Screen" width="600"/>
+  <img src="images/1.png" alt="Game Start Screen" width="600"/>
   
   <h3>In Progress</h3>
-  <img src="images/2.jpg" alt="Game in Progress" width="600"/>
+  <img src="images/2.png" alt="Game in Progress" width="600"/>
   
   <h3>Game Won</h3>
-  <img src="images/3.jpg" alt="Game Won Screen" width="600"/>
+  <img src="images/3.png" alt="Game Won Screen" width="600"/>
 </div>
 
 ## Project Structure
