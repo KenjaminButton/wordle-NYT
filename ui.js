@@ -77,8 +77,8 @@ class WordleUI {
         const rows = [
             ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
             ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-            ['enter', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'del'],
-            ['space']
+            ['▲', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '⌫'],
+            ['123', '☺', 'space', 'return']
         ];
 
         rows.forEach(row => {
@@ -90,9 +90,15 @@ class WordleUI {
                 button.type = 'button';
                 button.textContent = key;
                 button.setAttribute('data-key', key);
-                button.setAttribute('aria-label', key === 'del' ? 'delete' : key);
 
-                if (key === 'enter' || key === 'del') {
+                if (key === '▲' || key === '123' || key === '☺') {
+                    button.className = 'arrow-key';
+                    button.disabled = true;
+                } else if (key === '⌫') {
+                    button.className = 'arrow-key';
+                } else if (key === 'space') {
+                    button.className = 'space-key';
+                } else if (key === 'return') {
                     button.className = 'return-key';
                 }
 
@@ -112,9 +118,9 @@ class WordleUI {
             
             let key = e.key.toLowerCase();
             if (key === 'enter') {
-                key = 'enter';
+                key = 'return';
             } else if (key === 'backspace' || key === 'delete') {
-                key = 'del';
+                key = '⌫';
             } else if (key === ' ') {
                 key = 'space';
                 e.preventDefault(); // Prevent page scroll
@@ -170,19 +176,19 @@ class WordleUI {
     handleInput(key) {
         if (!this.game || !this.board || this.isGameOver()) return;
 
-        if (key === 'enter') {
+        if (key === 'return') {
             const result = this.game.submitGuess();
             if (result) {
                 this.updateBoard(result);
                 this.updateKeyboardColors(this.game.getGameState().guesses.slice(-1)[0], result);
             }
-        } else if (key === 'del') {
+        } else if (key === '⌫') {
             if (this.game.removeLetter()) {
                 this.updateCurrentRow();
             }
         } else if (key === 'space') {
             return;
-        } else if (/^[a-z]$/.test(key)) {
+        } else if (/^[a-zñ]$/.test(key)) {
             if (this.game.addLetter(key)) {
                 this.updateCurrentRow();
             }

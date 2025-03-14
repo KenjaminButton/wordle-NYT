@@ -56,7 +56,7 @@ describe('WordleUI', () => {
     });
 
     describe('Keyboard Setup', () => {
-        test('should create keyboard layout', () => {
+        test('should create keyboard with correct layout', () => {
             const rows = keyboard.getElementsByClassName('keyboard-row');
             expect(rows.length).toBe(4);
 
@@ -72,16 +72,52 @@ describe('WordleUI', () => {
             expect(secondRow[0].textContent).toBe('a');
             expect(secondRow[8].textContent).toBe('l');
 
-            // Check third row (Enter, Z-M, Del)
+            // Check third row (▲, Z-M, ⌫)
             const thirdRow = rows[2].getElementsByTagName('button');
             expect(thirdRow.length).toBe(9);
-            expect(thirdRow[0].textContent).toBe('enter');
-            expect(thirdRow[8].textContent).toBe('del');
+            expect(thirdRow[0].textContent).toBe('▲');
+            expect(thirdRow[1].textContent).toBe('z');
+            expect(thirdRow[8].textContent).toBe('⌫');
 
-            // Check fourth row (Space)
+            // Check fourth row (123, ☺, space, return)
             const fourthRow = rows[3].getElementsByTagName('button');
-            expect(fourthRow.length).toBe(1);
-            expect(fourthRow[0].textContent).toBe('space');
+            expect(fourthRow.length).toBe(4);
+            expect(fourthRow[0].textContent).toBe('123');
+            expect(fourthRow[1].textContent).toBe('☺');
+            expect(fourthRow[2].textContent).toBe('space');
+            expect(fourthRow[3].textContent).toBe('return');
+        });
+
+        test('should have correct key states', () => {
+            // Check disabled keys
+            const arrowKey = keyboard.querySelector('button[data-key="▲"]');
+            const numKey = keyboard.querySelector('button[data-key="123"]');
+            const emojiKey = keyboard.querySelector('button[data-key="☺"]');
+            expect(arrowKey.disabled).toBe(true);
+            expect(numKey.disabled).toBe(true);
+            expect(emojiKey.disabled).toBe(true);
+
+            // Check functional keys
+            const backspaceKey = keyboard.querySelector('button[data-key="⌫"]');
+            const spaceKey = keyboard.querySelector('button[data-key="space"]');
+            const returnKey = keyboard.querySelector('button[data-key="return"]');
+            expect(backspaceKey.disabled).toBe(false);
+            expect(spaceKey.disabled).toBe(false);
+            expect(returnKey.disabled).toBe(false);
+        });
+
+        test('should handle keyboard input', () => {
+            // Test letter input
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+            expect(game.addLetter).toHaveBeenCalledWith('a');
+
+            // Test return key
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+            expect(game.submitGuess).toHaveBeenCalled();
+
+            // Test backspace key
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
+            expect(game.removeLetter).toHaveBeenCalled();
         });
 
         test('should handle on-screen keyboard clicks', () => {
@@ -90,29 +126,25 @@ describe('WordleUI', () => {
             letterButton.click();
             expect(game.addLetter).toHaveBeenCalledWith('a');
 
-            // Click Enter button
-            const enterButton = keyboard.querySelector('button[data-key="enter"]');
-            enterButton.click();
+            // Click return button
+            const returnButton = keyboard.querySelector('button[data-key="return"]');
+            returnButton.click();
             expect(game.submitGuess).toHaveBeenCalled();
 
-            // Click Del button
-            const delButton = keyboard.querySelector('button[data-key="del"]');
-            delButton.click();
+            // Click backspace button
+            const backspaceButton = keyboard.querySelector('button[data-key="⌫"]');
+            backspaceButton.click();
             expect(game.removeLetter).toHaveBeenCalled();
         });
 
-        test('should handle keyboard input', () => {
-            // Test letter input
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
-            expect(game.addLetter).toHaveBeenCalledWith('a');
-
-            // Test Enter key
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-            expect(game.submitGuess).toHaveBeenCalled();
-
-            // Test Backspace key
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
-            expect(game.removeLetter).toHaveBeenCalled();
+        test('should have correct key styles', () => {
+            const backspaceKey = keyboard.querySelector('button[data-key="⌫"]');
+            const spaceKey = keyboard.querySelector('button[data-key="space"]');
+            const returnKey = keyboard.querySelector('button[data-key="return"]');
+            
+            expect(backspaceKey.className).toBe('arrow-key');
+            expect(spaceKey.className).toBe('space-key');
+            expect(returnKey.className).toBe('return-key');
         });
     });
 
