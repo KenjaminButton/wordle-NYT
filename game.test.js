@@ -25,6 +25,9 @@ describe('WordleGame', () => {
 
         // Mock window.dispatchEvent
         window.dispatchEvent = jest.fn();
+
+        // Reset fetch mock before each test
+        global.fetch = jest.fn();
     });
 
     describe('Game Initialization', () => {
@@ -37,19 +40,129 @@ describe('WordleGame', () => {
             expect(game.gameOver).toBe(false);
         });
 
-        test('should handle API failure gracefully', async () => {
-            global.fetch = jest.fn(() => Promise.reject('API is down'));
-            game = new WordleGame();
-            await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+        describe('Network Failure Scenarios', () => {
+            test('should handle generic API failure', async () => {
+                global.fetch.mockRejectedValue(new Error('API is down'));
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+
+            test('should handle timeout error', async () => {
+                global.fetch.mockRejectedValue(new Error('Network timeout'));
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+
+            test('should handle malformed JSON response', async () => {
+                global.fetch.mockResolvedValue({
+                    ok: true,
+                    json: () => Promise.reject(new Error('Invalid JSON'))
+                });
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+
+            test('should handle empty word list', async () => {
+                global.fetch.mockResolvedValue({
+                    ok: true,
+                    json: () => Promise.resolve({})
+                });
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('No words available');
+            });
+
+            test('should handle partial data corruption', async () => {
+                global.fetch.mockResolvedValue({
+                    ok: true,
+                    json: () => Promise.resolve({
+                        "word1": null,
+                        "word2": undefined,
+                        "word3": "Valid definition"
+                    })
+                });
+                game = new WordleGame();
+                await game.initialize();
+                expect(Object.keys(game.wordData).length).toBe(3);
+            });
         });
 
-        test('should handle invalid response gracefully', async () => {
-            global.fetch = jest.fn(() => Promise.resolve({
-                ok: false,
-                status: 404
-            }));
-            game = new WordleGame();
-            await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+        describe('HTTP Status Code Handling', () => {
+            test('should handle 404 Not Found', async () => {
+                global.fetch.mockResolvedValue({
+                    ok: false,
+                    status: 404
+                });
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+
+            test('should handle 500 Server Error', async () => {
+                global.fetch.mockResolvedValue({
+                    ok: false,
+                    status: 500
+                });
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+
+            test('should handle 503 Service Unavailable', async () => {
+                global.fetch.mockResolvedValue({
+                    ok: false,
+                    status: 503
+                });
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+
+            test('should handle rate limiting (429)', async () => {
+                global.fetch.mockResolvedValue({
+                    ok: false,
+                    status: 429
+                });
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+        });
+
+        describe('CORS and Security', () => {
+            test('should handle CORS errors', async () => {
+                global.fetch.mockRejectedValue(new Error('CORS error'));
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+
+            test('should handle mixed content errors', async () => {
+                global.fetch.mockRejectedValue(new Error('Mixed Content'));
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
+        });
+
+        describe('Network Conditions', () => {
+            test('should handle slow network', async () => {
+                global.fetch.mockImplementation(() => new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve({
+                            ok: true,
+                            json: () => Promise.resolve({
+                                "stare": "To look fixedly"
+                            })
+                        });
+                    }, 1000);
+                }));
+                game = new WordleGame();
+                await expect(game.initialize()).resolves.not.toThrow();
+            });
+
+            test('should handle connection interruption', async () => {
+                global.fetch.mockImplementation(() => new Promise((_, reject) => {
+                    setTimeout(() => {
+                        reject(new Error('Connection interrupted'));
+                    }, 500);
+                }));
+                game = new WordleGame();
+                await expect(game.initialize()).rejects.toThrow('Failed to load word list');
+            });
         });
     });
 

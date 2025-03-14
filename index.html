@@ -11,61 +11,20 @@
         <header>
             <h1>Wordle</h1>
         </header>
-        <div id="board">
-            <div class="board-row">
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-            </div>
-            <div class="board-row">
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-            </div>
-            <div class="board-row">
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-            </div>
-            <div class="board-row">
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-            </div>
-            <div class="board-row">
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-            </div>
-            <div class="board-row">
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-                <div class="tile"></div>
-            </div>
-        </div>
+        <div id="definition-container" class="definition-container"></div>
+        <div id="board"></div>
         <div id="keyboard"></div>
     </div>
+    <script src="game.js"></script>
+    <script src="ui.js"></script>
     <script>
         // Initialize the game when the page loads
-        window.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('DOM loaded, initializing game...');
             const game = new WordleGame();
             await game.initialize();
             const ui = new WordleUI(game);
         });
     </script>
-    <script src="game.js"></script>
-    <script src="ui.js"></script>
 </body>
 </html>

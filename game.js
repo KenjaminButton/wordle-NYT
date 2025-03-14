@@ -17,38 +17,76 @@ class WordleGame {
         this.gameWon = false;       // True when player wins
         this.gameLost = false;      // True when player loses
 
-        // If we got word data, pick a word right away
+        // Debug logging
+        console.log('WordleGame initialized');
         if (Object.keys(wordData).length > 0) {
+            console.log('Initial word data provided:', Object.keys(wordData).length, 'words');
             this.selectNewWord();
         }
     }
 
     // Start a new game by loading words and picking one
     async initialize() {
+        console.log('Starting game initialization...');
         if (Object.keys(this.wordData).length === 0) {
             try {
-                const response = await fetch('lib/test.json');
+                console.log('Fetching word list from lib/clean.json...');
+                const response = await fetch('lib/clean.json');
                 if (!response.ok) {
                     throw new Error('Failed to load word list');
                 }
-                this.wordData = await response.json();
+                const data = await response.json();
+                console.log('Word list loaded successfully:', Object.keys(data).length, 'words');
+                
+                // Check if the word list is empty
+                if (Object.keys(data).length === 0) {
+                    throw new Error('No words available');
+                }
+                
+                this.wordData = data;
                 this.selectNewWord();
             } catch (error) {
                 console.error('Failed to load word list:', error);
+                // Only propagate 'No words available' error, wrap others in standard error
+                if (error.message === 'No words available') {
+                    throw error;
+                }
                 throw new Error('Failed to load word list');
             }
+        } else {
+            console.log('Using existing word data');
+            this.selectNewWord();
         }
     }
 
     // Pick a random word from our dictionary
     selectNewWord() {
+        console.log('Selecting new word...');
         const words = Object.keys(this.wordData);
         if (words.length === 0) {
             throw new Error('No words available');
         }
-        this.targetWord = words[Math.floor(Math.random() * words.length)].toLowerCase();
-        this.targetDefinition = this.wordData[this.targetWord];
-        console.log('Target word:', this.targetWord); // Debug line
+        const word = words[Math.floor(Math.random() * words.length)];
+        this.targetWord = word.toLowerCase();
+        this.targetDefinition = this.wordData[word];
+        
+        // Debug logging
+        console.log('Selected word:', this.targetWord);
+        console.log('Definition:', this.targetDefinition);
+        
+        // Dispatch event with word and definition
+        if (typeof window !== 'undefined') {
+            console.log('Dispatching wordSelected event...');
+            const event = new CustomEvent('wordSelected', {
+                detail: {
+                    word: this.targetWord,
+                    definition: this.targetDefinition
+                }
+            });
+            window.dispatchEvent(event);
+            console.log('Event dispatched');
+        }
+        
         return {
             word: this.targetWord,
             definition: this.targetDefinition

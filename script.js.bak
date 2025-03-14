@@ -12,7 +12,7 @@ class WordleGame {
 
     async loadWordList() {
         try {
-            const response = await fetch('lib/en.json');
+            const response = await fetch('lib/clean.json');
             const wordList = await response.json();
             this.targetWord = wordList[Math.floor(Math.random() * wordList.length)].toLowerCase();
             this.initializeBoard();

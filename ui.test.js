@@ -9,15 +9,18 @@ describe('WordleUI', () => {
     let game;
     let board;
     let keyboard;
+    let definitionContainer;
 
     beforeEach(() => {
         document.body.innerHTML = `
             <div id="board"></div>
             <div id="keyboard"></div>
+            <div id="definition-container"></div>
         `;
 
         board = document.getElementById('board');
         keyboard = document.getElementById('keyboard');
+        definitionContainer = document.getElementById('definition-container');
 
         game = {
             WORD_LENGTH: 5,
@@ -110,6 +113,31 @@ describe('WordleUI', () => {
             // Test Backspace key
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
             expect(game.removeLetter).toHaveBeenCalled();
+        });
+    });
+
+    describe('Definition Display', () => {
+        test('should show initial definition', () => {
+            expect(definitionContainer.textContent).toBe('Hint: To look fixedly');
+        });
+
+        test('should update definition on word selection', () => {
+            window.dispatchEvent(new CustomEvent('wordSelected', {
+                detail: {
+                    word: 'light',
+                    definition: 'Visible energy'
+                }
+            }));
+            expect(definitionContainer.textContent).toBe('Hint: Visible energy');
+        });
+
+        test('should handle missing definition', () => {
+            window.dispatchEvent(new CustomEvent('wordSelected', {
+                detail: {
+                    word: 'test'
+                }
+            }));
+            expect(definitionContainer.style.display).toBe('none');
         });
     });
 
@@ -243,7 +271,12 @@ describe('WordleUI', () => {
     describe('Mobile and Accessibility', () => {
         test('should handle touch events', () => {
             const button = keyboard.querySelector('button[data-key="a"]');
-            button.dispatchEvent(new TouchEvent('touchend'));
+            const touchEvent = new TouchEvent('touchend', {
+                bubbles: true,
+                cancelable: true,
+                target: button
+            });
+            button.dispatchEvent(touchEvent);
             expect(game.addLetter).toHaveBeenCalledWith('a');
         });
 

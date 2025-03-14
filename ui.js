@@ -5,15 +5,50 @@ class WordleUI {
         this.currentTile = 0;
         this.board = document.getElementById('board');
         this.keyboard = document.getElementById('keyboard');
+        this.definitionContainer = document.getElementById('definition-container');
         
-        // Handle missing DOM elements gracefully
-        if (this.board && this.keyboard) {
+        console.log('UI Elements:', {
+            board: !!this.board,
+            keyboard: !!this.keyboard,
+            definitionContainer: !!this.definitionContainer
+        });
+        
+        // Initialize the UI
+        if (this.board && this.keyboard && this.definitionContainer) {
             this.setupBoard();
             this.setupKeyboard();
             this.setupEventListeners();
+            
+            // Show initial definition
+            const gameState = this.game.getGameState();
+            if (gameState && gameState.targetDefinition) {
+                console.log('Initial definition available:', gameState.targetDefinition);
+                this.updateDefinition(gameState.targetDefinition);
+            }
         } else {
             console.warn('Required DOM elements not found');
         }
+
+        // Listen for word selection events
+        window.addEventListener('wordSelected', (event) => {
+            console.log('Word selection event received:', event.detail);
+            if (event.detail) {
+                this.updateDefinition(event.detail.definition);
+            }
+        });
+
+        // Listen for game end events
+        window.addEventListener('wordleGameWon', (event) => {
+            if (event.detail) {
+                window.alert(`Congratulations! You won in ${event.detail.attempts} attempts!\nWord: ${event.detail.word}\nDefinition: ${event.detail.definition}`);
+            }
+        });
+
+        window.addEventListener('wordleGameLost', (event) => {
+            if (event.detail) {
+                window.alert(`Game Over! The word was: ${event.detail.word}\nDefinition: ${event.detail.definition}`);
+            }
+        });
     }
 
     setupBoard() {
@@ -108,21 +143,23 @@ class WordleUI {
             
             e.preventDefault(); // Prevent double-firing with click event
             const key = button.getAttribute('data-key');
-            this.handleInput(key);
-        });
+            if (key && this.game && typeof this.game.addLetter === 'function') {
+                this.game.addLetter(key);
+            }
+        }, { passive: false }); // Allow preventDefault
 
-        // Game end events
-        window.addEventListener('wordleGameWon', (e) => {
-            setTimeout(() => {
-                alert(`Congratulations! You won in ${e.detail.attempts} attempts!\nWord: ${e.detail.word}\nDefinition: ${e.detail.definition}`);
-            }, 500);
+        // Handle screen rotation
+        window.addEventListener('resize', () => {
+            this.handleScreenRotation();
         });
+        this.handleScreenRotation(); // Initial setup
+    }
 
-        window.addEventListener('wordleGameLost', (e) => {
-            setTimeout(() => {
-                alert(`Game Over! The word was: ${e.detail.word}\nDefinition: ${e.detail.definition}`);
-            }, 500);
-        });
+    handleScreenRotation() {
+        if (this.keyboard) {
+            const isLandscape = window.innerWidth > window.innerHeight;
+            this.keyboard.style.maxWidth = isLandscape ? '800px' : '100%'; // Match test expectations
+        }
     }
 
     isGameOver() {
@@ -216,6 +253,23 @@ class WordleUI {
             });
         } catch (error) {
             console.error('Error updating keyboard colors:', error);
+        }
+    }
+
+    updateDefinition(definition) {
+        console.log('Updating definition:', definition);
+        if (this.definitionContainer) {
+            if (definition) {
+                this.definitionContainer.textContent = `Hint: ${definition}`;
+                this.definitionContainer.style.display = 'block';
+                console.log('Definition updated successfully');
+            } else {
+                this.definitionContainer.textContent = '';
+                this.definitionContainer.style.display = 'none';
+                console.log('Definition hidden - no definition available');
+            }
+        } else {
+            console.warn('Could not update definition: container not found');
         }
     }
 }
