@@ -2,6 +2,47 @@
 
 A browser-based implementation of the popular word game Wordle.
 
+<div align="center">
+  <h1>Kenjamin Button's Wordle Clone</h1>
+
+  <h3>A Modern Implementation of the Popular Word Game</h3>
+
+  <p align="center">
+    <h2>
+      <a href="https://wordle-nyt.vercel.app/" style="font-size: 24px;">
+        🎮 PLAY LIVE DEMO 🎮
+      </a>
+    </h2>
+    <br />
+    A thoroughly tested implementation of the NYT Wordle game using HTML, CSS, and JavaScript.
+    Complete with comprehensive Jest test coverage and professional development practices.
+    <br />
+    <a href="https://github.com/KenjaminButton/wordle-NYT"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="https://github.com/KenjaminButton/wordle-NYT/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/KenjaminButton/wordle-NYT/issues">Request Feature</a>
+  </p>
+</div>
+
+## About The Project
+
+A modern, web-based implementation of the New York Times' Wordle game. This project features a clean, responsive design, intuitive keyboard interface, and comprehensive test coverage using Jest. Players can enjoy guessing a daily five-letter word with color-coded feedback, backed by robust code quality and testing practices.
+
+### Screenshots
+
+<div align="center">
+  <h3>Game Start</h3>
+  <img src="images/1.jpg" alt="Game Start Screen" width="600"/>
+  
+  <h3>In Progress</h3>
+  <img src="images/2.jpg" alt="Game in Progress" width="600"/>
+  
+  <h3>Game Won</h3>
+  <img src="images/3.jpg" alt="Game Won Screen" width="600"/>
+</div>
+
 ## Project Structure
 ```
 wordle-NYT/
@@ -20,26 +61,6 @@ wordle-NYT/
 │   └── clean.json     # Word list and definitions
 └── package.json       # Project dependencies
 ```
-
-## Development Setup
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Run tests:
-```bash
-npm test
-```
-
-3. Run tests in watch mode:
-```bash
-npm run test:watch
-```
-
-## About The Project
-
-A modern, web-based implementation of the New York Times' Wordle game. This project features a clean, responsive design, intuitive keyboard interface, and comprehensive test coverage using Jest. Players can enjoy guessing a daily five-letter word with color-coded feedback, backed by robust code quality and testing practices.
 
 ### Features
 
