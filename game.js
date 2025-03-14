@@ -1,6 +1,13 @@
-// This is our main game class that handles all the Wordle game rules and logic
+/**
+ * WordleGame Class
+ * Implements the core game logic for the Wordle game.
+ * Handles word selection, guess validation, and game state management.
+ */
 class WordleGame {
-    // Set up the game rules when we start
+    /**
+     * Initialize the game with word data
+     * @param {Array} wordData - Array of word objects with word and definition properties
+     */
     constructor(wordData = {}) {
         // Game settings
         this.WORD_LENGTH = 5;       // Words must be 5 letters long
@@ -18,25 +25,28 @@ class WordleGame {
         this.gameLost = false;      // True when player loses
 
         // Debug logging
-        console.log('WordleGame initialized');
+        this.log('WordleGame initialized');
         if (Object.keys(wordData).length > 0) {
-            console.log('Initial word data provided:', Object.keys(wordData).length, 'words');
+            this.log('Initial word data provided:', Object.keys(wordData).length, 'words');
             this.selectNewWord();
         }
     }
 
-    // Start a new game by loading words and picking one
+    /**
+     * Start a new game by loading words and picking one
+     * @async
+     */
     async initialize() {
-        console.log('Starting game initialization...');
+        this.log('Starting game initialization...');
         if (Object.keys(this.wordData).length === 0) {
             try {
-                console.log('Fetching word list from lib/clean.json...');
+                this.log('Fetching word list from lib/clean.json...');
                 const response = await fetch('lib/clean.json');
                 if (!response.ok) {
                     throw new Error('Failed to load word list');
                 }
                 const data = await response.json();
-                console.log('Word list loaded successfully:', Object.keys(data).length, 'words');
+                this.log('Word list loaded successfully:', Object.keys(data).length, 'words');
                 
                 // Check if the word list is empty
                 if (Object.keys(data).length === 0) {
@@ -46,7 +56,7 @@ class WordleGame {
                 this.wordData = data;
                 this.selectNewWord();
             } catch (error) {
-                console.error('Failed to load word list:', error);
+                this.log('Failed to load word list:', error);
                 // Only propagate 'No words available' error, wrap others in standard error
                 if (error.message === 'No words available') {
                     throw error;
@@ -54,14 +64,17 @@ class WordleGame {
                 throw new Error('Failed to load word list');
             }
         } else {
-            console.log('Using existing word data');
+            this.log('Using existing word data');
             this.selectNewWord();
         }
     }
 
-    // Pick a random word from our dictionary
+    /**
+     * Pick a random word from our dictionary
+     * @returns {Object} Selected word and definition
+     */
     selectNewWord() {
-        console.log('Selecting new word...');
+        this.log('Selecting new word...');
         const words = Object.keys(this.wordData);
         if (words.length === 0) {
             throw new Error('No words available');
@@ -71,12 +84,12 @@ class WordleGame {
         this.targetDefinition = this.wordData[word];
         
         // Debug logging
-        console.log('Selected word:', this.targetWord);
-        console.log('Definition:', this.targetDefinition);
+        this.log('Selected word:', this.targetWord);
+        this.log('Definition:', this.targetDefinition);
         
         // Dispatch event with word and definition
         if (typeof window !== 'undefined') {
-            console.log('Dispatching wordSelected event...');
+            this.log('Dispatching wordSelected event...');
             const event = new CustomEvent('wordSelected', {
                 detail: {
                     word: this.targetWord,
@@ -84,7 +97,7 @@ class WordleGame {
                 }
             });
             window.dispatchEvent(event);
-            console.log('Event dispatched');
+            this.log('Event dispatched');
         }
         
         return {
@@ -93,7 +106,11 @@ class WordleGame {
         };
     }
 
-    // Add a letter to the current guess
+    /**
+     * Add a letter to the current guess
+     * @param {string} letter - Letter to add
+     * @returns {boolean} True if letter was added successfully
+     */
     addLetter(letter) {
         // Don't add letters if:
         // - Game is over
@@ -113,7 +130,10 @@ class WordleGame {
         return true;
     }
 
-    // Remove the last letter from the current guess
+    /**
+     * Remove the last letter from the current guess
+     * @returns {boolean} True if letter was removed successfully
+     */
     removeLetter() {
         // Don't remove if:
         // - Game is over
@@ -127,7 +147,10 @@ class WordleGame {
         return true;
     }
 
-    // Try to submit the current guess
+    /**
+     * Try to submit the current guess
+     * @returns {Array|null} Array of tile states or null if invalid
+     */
     submitGuess() {
         if (this.gameOver || this.currentGuess.length !== this.WORD_LENGTH) {
             return null;
@@ -169,7 +192,10 @@ class WordleGame {
         return result;
     }
 
-    // Check how well the guess matches the target word
+    /**
+     * Check how well the guess matches the target word
+     * @returns {Array|null} Array of tile states or null if invalid
+     */
     checkGuess() {
         const result = new Array(this.WORD_LENGTH).fill('absent');
         const targetLetters = [...this.targetWord];
@@ -200,7 +226,10 @@ class WordleGame {
         return result;
     }
 
-    // Get the current state of the game
+    /**
+     * Get the current state of the game
+     * @returns {Object} Current game state
+     */
     getGameState() {
         return {
             currentRow: this.currentRow,
@@ -212,6 +241,19 @@ class WordleGame {
             targetWord: this.targetWord,
             targetDefinition: this.targetDefinition
         };
+    }
+
+    /**
+     * Utility function for logging
+     * @param {string} message - Log message
+     * @param {*} data - Optional data to log
+     */
+    log(message, data) {
+        if (data !== undefined) {
+            console.log(message, data);
+        } else {
+            console.log(message);
+        }
     }
 }
 

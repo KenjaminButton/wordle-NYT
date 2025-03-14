@@ -175,6 +175,7 @@ describe('WordleGame', () => {
         test('should reject invalid characters', () => {
             expect(game.addLetter('1')).toBe(false);
             expect(game.addLetter('!')).toBe(false);
+            expect(game.addLetter(' ')).toBe(false);
             expect(game.currentGuess).toBe('');
         });
 
@@ -262,6 +263,181 @@ describe('WordleGame', () => {
         test('should handle spaces', () => {
             expect(game.addLetter(' ')).toBe(false);
             expect(game.currentGuess).toBe('');
+        });
+    });
+
+    describe('Word Validation', () => {
+        test('should validate word length', () => {
+            // Add 4 letters (too short)
+            game.addLetter('s');
+            game.addLetter('t');
+            game.addLetter('a');
+            game.addLetter('r');
+            expect(game.submitGuess()).toBe(null);
+
+            // Add 5th letter (correct length)
+            game.addLetter('e');
+            expect(game.submitGuess()).toBeTruthy();
+        });
+
+        test('should handle non-alphabetic characters', () => {
+            expect(game.addLetter('1')).toBe(false);
+            expect(game.addLetter('@')).toBe(false);
+            expect(game.addLetter(' ')).toBe(false);
+            expect(game.currentGuess).toBe('');
+        });
+
+        test('should be case insensitive', () => {
+            ['S', 't', 'A', 'r', 'E'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            const result = game.submitGuess();
+            expect(result).toBeTruthy();
+            expect(result.every(state => state === 'correct')).toBe(true);
+        });
+    });
+
+    describe('Game Completion Scenarios', () => {
+        test('should handle win on first try', () => {
+            ['s', 't', 'a', 'r', 'e'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            game.submitGuess();
+            expect(game.gameWon).toBe(true);
+            expect(game.gameOver).toBe(true);
+            expect(window.dispatchEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'wordleGameWon'
+                })
+            );
+        });
+
+        test('should handle win on last try', () => {
+            // Make 5 wrong guesses
+            for (let i = 0; i < 5; i++) {
+                ['b', 'r', 'a', 'i', 'n'].forEach(letter => {
+                    game.addLetter(letter);
+                });
+                game.submitGuess();
+            }
+
+            // Win on 6th try
+            ['s', 't', 'a', 'r', 'e'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            game.submitGuess();
+            expect(game.gameWon).toBe(true);
+            expect(game.gameOver).toBe(true);
+            expect(game.currentRow).toBe(6);
+        });
+
+        test('should handle loss after max attempts', () => {
+            // Make 6 wrong guesses
+            for (let i = 0; i < 6; i++) {
+                ['b', 'r', 'a', 'i', 'n'].forEach(letter => {
+                    game.addLetter(letter);
+                });
+                game.submitGuess();
+            }
+            expect(game.gameLost).toBe(true);
+            expect(game.gameOver).toBe(true);
+            expect(window.dispatchEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'wordleGameLost'
+                })
+            );
+        });
+    });
+
+    describe('Edge Cases', () => {
+        test('should handle repeated letters in target word', () => {
+            game.targetWord = 'speed';
+            game.addLetter('s');
+            game.addLetter('p');
+            game.addLetter('e');
+            game.addLetter('e');
+            game.addLetter('d');
+            const result = game.submitGuess();
+            expect(result).toBeTruthy();
+            expect(result[2]).toBe('correct');
+            expect(result[3]).toBe('correct');
+        });
+
+        test('should handle repeated letters in guess', () => {
+            game.targetWord = 'light';
+            ['s', 'p', 'e', 'e', 'd'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            const result = game.submitGuess();
+            expect(result).toBeTruthy();
+            expect(result[2]).toBe('absent');
+            expect(result[3]).toBe('absent');
+        });
+
+        test('should handle all letters absent', () => {
+            game.targetWord = 'light';
+            ['s', 'p', 'e', 'e', 'd'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            const result = game.submitGuess();
+            expect(result).toBeTruthy();
+            expect(result.every(state => state === 'absent')).toBe(true);
+        });
+
+        test('should handle letters present but in wrong positions', () => {
+            game.targetWord = 'stare';
+            ['e', 'r', 'a', 't', 's'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            const result = game.submitGuess();
+            expect(result).toBeTruthy();
+            // Each letter should be marked as 'present' or 'correct' since they all exist in the target word
+            expect(result.every(state => state === 'present' || state === 'correct')).toBe(true);
+            // At least one letter should be 'present' (in wrong position) since we scrambled the word
+            expect(result.some(state => state === 'present')).toBe(true);
+        });
+    });
+
+    describe('Game State Management', () => {
+        test('should track guess history', () => {
+            ['s', 't', 'a', 'r', 'e'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            game.submitGuess();
+            expect(game.guesses).toHaveLength(1);
+            expect(game.guesses[0]).toBe('stare');
+        });
+
+        test('should prevent input after game over', () => {
+            // Win the game
+            ['s', 't', 'a', 'r', 'e'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            game.submitGuess();
+
+            // Try to continue playing
+            expect(game.addLetter('b')).toBe(false);
+            expect(game.submitGuess()).toBe(null);
+        });
+
+        test('should maintain game state between guesses', () => {
+            // First guess
+            ['b', 'r', 'a', 'i', 'n'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            game.submitGuess();
+            expect(game.currentRow).toBe(1);
+            expect(game.currentGuess).toBe('');
+            expect(game.guesses).toHaveLength(1);
+
+            // Second guess
+            ['s', 't', 'a', 'r', 'e'].forEach(letter => {
+                game.addLetter(letter);
+            });
+            game.submitGuess();
+            expect(game.currentRow).toBe(2);
+            expect(game.currentGuess).toBe('');
+            expect(game.guesses).toHaveLength(2);
         });
     });
 
