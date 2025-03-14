@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 const WordleUI = require('./ui');
 
 describe('WordleUI', () => {
@@ -5,36 +9,31 @@ describe('WordleUI', () => {
     let game;
     let board;
     let keyboard;
-    let targetWordDisplay;
 
     beforeEach(() => {
         document.body.innerHTML = `
             <div id="board"></div>
             <div id="keyboard"></div>
-            <div id="target-word"></div>
         `;
 
         board = document.getElementById('board');
         keyboard = document.getElementById('keyboard');
-        targetWordDisplay = document.getElementById('target-word');
 
         game = {
-            MAX_ATTEMPTS: 6,
             WORD_LENGTH: 5,
+            MAX_ATTEMPTS: 6,
             addLetter: jest.fn().mockReturnValue(true),
             removeLetter: jest.fn().mockReturnValue(true),
-            submitGuess: jest.fn().mockReturnValue({
-                guess: 'stare',
-                result: ['correct', 'present', 'absent', 'correct', 'present']
-            }),
+            submitGuess: jest.fn().mockReturnValue(['correct', 'present', 'absent', 'correct', 'present']),
             getGameState: jest.fn().mockReturnValue({
-                currentRow: 1,
+                currentRow: 0,
                 currentGuess: '',
-                guesses: ['stare'],
-                results: [['correct', 'present', 'absent', 'correct', 'present']],
+                guesses: [],
                 gameOver: false,
+                gameWon: false,
+                gameLost: false,
                 targetWord: 'stare',
-                targetDefinition: 'to look fixedly or vacantly'
+                targetDefinition: 'To look fixedly'
             })
         };
 
@@ -43,9 +42,9 @@ describe('WordleUI', () => {
 
     describe('Board Setup', () => {
         test('should create board with correct number of rows and tiles', () => {
-            const rows = board.getElementsByClassName('row');
+            const rows = board.getElementsByClassName('board-row');
             expect(rows.length).toBe(game.MAX_ATTEMPTS);
-
+            
             Array.from(rows).forEach(row => {
                 const tiles = row.getElementsByClassName('tile');
                 expect(tiles.length).toBe(game.WORD_LENGTH);
@@ -54,31 +53,51 @@ describe('WordleUI', () => {
     });
 
     describe('Keyboard Setup', () => {
-        test('should create iPhone-style keyboard layout', () => {
+        test('should create keyboard layout', () => {
             const rows = keyboard.getElementsByClassName('keyboard-row');
-            expect(rows.length).toBe(3);
+            expect(rows.length).toBe(4);
 
             // Check first row (Q-P)
             const firstRow = rows[0].getElementsByTagName('button');
             expect(firstRow.length).toBe(10);
-            expect(firstRow[0].textContent).toBe('Q');
-            expect(firstRow[9].textContent).toBe('P');
+            expect(firstRow[0].textContent).toBe('q');
+            expect(firstRow[9].textContent).toBe('p');
 
             // Check second row (A-L)
             const secondRow = rows[1].getElementsByTagName('button');
             expect(secondRow.length).toBe(9);
-            expect(secondRow[0].textContent).toBe('A');
-            expect(secondRow[8].textContent).toBe('L');
+            expect(secondRow[0].textContent).toBe('a');
+            expect(secondRow[8].textContent).toBe('l');
 
-            // Check third row (Shift, Z-M, Enter)
+            // Check third row (Enter, Z-M, Del)
             const thirdRow = rows[2].getElementsByTagName('button');
             expect(thirdRow.length).toBe(9);
-            expect(thirdRow[0].textContent).toBe('⌫');
-            expect(thirdRow[8].textContent).toBe('Enter');
-        });
-    });
+            expect(thirdRow[0].textContent).toBe('enter');
+            expect(thirdRow[8].textContent).toBe('del');
 
-    describe('Game Interaction', () => {
+            // Check fourth row (Space)
+            const fourthRow = rows[3].getElementsByTagName('button');
+            expect(fourthRow.length).toBe(1);
+            expect(fourthRow[0].textContent).toBe('space');
+        });
+
+        test('should handle on-screen keyboard clicks', () => {
+            // Click letter button
+            const letterButton = keyboard.querySelector('button[data-key="a"]');
+            letterButton.click();
+            expect(game.addLetter).toHaveBeenCalledWith('a');
+
+            // Click Enter button
+            const enterButton = keyboard.querySelector('button[data-key="enter"]');
+            enterButton.click();
+            expect(game.submitGuess).toHaveBeenCalled();
+
+            // Click Del button
+            const delButton = keyboard.querySelector('button[data-key="del"]');
+            delButton.click();
+            expect(game.removeLetter).toHaveBeenCalled();
+        });
+
         test('should handle keyboard input', () => {
             // Test letter input
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
@@ -88,93 +107,165 @@ describe('WordleUI', () => {
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
             expect(game.submitGuess).toHaveBeenCalled();
 
-            // Test Backspace
+            // Test Backspace key
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
             expect(game.removeLetter).toHaveBeenCalled();
         });
+    });
 
-        test('should handle on-screen keyboard clicks', () => {
-            const buttons = keyboard.getElementsByTagName('button');
-            
-            // Click letter button
-            const letterButton = Array.from(buttons).find(b => b.getAttribute('data-key') === 'A');
-            letterButton.click();
-            expect(game.addLetter).toHaveBeenCalledWith('a');
-
-            // Click Enter button
-            const enterButton = Array.from(buttons).find(b => b.getAttribute('data-key') === 'Enter');
-            enterButton.click();
-            expect(game.submitGuess).toHaveBeenCalled();
-
-            // Click Backspace button
-            const backspaceButton = Array.from(buttons).find(b => b.getAttribute('data-key') === 'Backspace');
-            backspaceButton.click();
-            expect(game.removeLetter).toHaveBeenCalled();
-        });
-
-        test('should update current row when adding letters', () => {
+    describe('Color Updates', () => {
+        test('should update tile colors after guess', () => {
+            // Mock game state with a guess
             game.getGameState.mockReturnValue({
-                currentRow: 0,
-                currentGuess: 'sta',
-                guesses: [],
-                gameOver: false
+                currentRow: 1,
+                guesses: ['stare'],
+                currentGuess: ''
             });
 
-            game.addLetter.mockReturnValue(true);
+            // Submit a guess
+            const tiles = board.children[0].children;
+            ui.handleInput('s');
+            ui.handleInput('t');
             ui.handleInput('a');
+            ui.handleInput('r');
+            ui.handleInput('e');
+            ui.handleInput('enter');
 
-            const firstRowTiles = board.children[0].children;
-            expect(firstRowTiles[0].textContent).toBe('S');
-            expect(firstRowTiles[1].textContent).toBe('T');
-            expect(firstRowTiles[2].textContent).toBe('A');
+            // Check tile colors
+            expect(tiles[0].classList.contains('correct')).toBe(true);
+            expect(tiles[1].classList.contains('present')).toBe(true);
+            expect(tiles[2].classList.contains('absent')).toBe(true);
+            expect(tiles[3].classList.contains('correct')).toBe(true);
+            expect(tiles[4].classList.contains('present')).toBe(true);
+        });
+
+        test('should update keyboard colors after guess', () => {
+            // Mock game state with a guess
+            game.getGameState.mockReturnValue({
+                currentRow: 1,
+                guesses: ['stare'],
+                currentGuess: ''
+            });
+
+            // Submit a guess
+            ui.handleInput('s');
+            ui.handleInput('t');
+            ui.handleInput('a');
+            ui.handleInput('r');
+            ui.handleInput('e');
+            ui.handleInput('enter');
+
+            // Check keyboard button colors
+            const sButton = keyboard.querySelector('button[data-key="s"]');
+            const tButton = keyboard.querySelector('button[data-key="t"]');
+            const aButton = keyboard.querySelector('button[data-key="a"]');
+
+            expect(sButton.classList.contains('correct')).toBe(true);
+            expect(tButton.classList.contains('present')).toBe(true);
+            expect(aButton.classList.contains('absent')).toBe(true);
         });
     });
 
-    describe('Game End', () => {
-        test('should show win notification', () => {
-            const detail = {
-                word: 'stare',
-                attempts: 3,
-                definition: 'to look fixedly'
-            };
+    describe('Game Over State', () => {
+        test('should disable keyboard after win', () => {
+            game.getGameState.mockReturnValue({
+                gameOver: true,
+                gameWon: true,
+                gameLost: false
+            });
 
-            window.dispatchEvent(new CustomEvent('wordleGameWon', { detail }));
-
-            const notification = document.querySelector('.win-notification');
-            expect(notification).toBeTruthy();
-            expect(notification.innerHTML).toContain('CONGRATULATIONS');
-            expect(notification.innerHTML).toContain('3 tries');
-            expect(notification.innerHTML).toContain('STARE');
+            const button = keyboard.querySelector('button[data-key="a"]');
+            button.click();
+            expect(game.addLetter).not.toHaveBeenCalled();
         });
 
-        test('should show lose notification', () => {
-            const detail = {
-                word: 'stare',
-                definition: 'to look fixedly'
-            };
+        test('should disable keyboard after loss', () => {
+            game.getGameState.mockReturnValue({
+                gameOver: true,
+                gameWon: false,
+                gameLost: true
+            });
 
-            window.dispatchEvent(new CustomEvent('wordleGameLost', { detail }));
-
-            const notification = document.querySelector('.lose-notification');
-            expect(notification).toBeTruthy();
-            expect(notification.innerHTML).toContain('GAME OVER');
-            expect(notification.innerHTML).toContain('STARE');
+            const button = keyboard.querySelector('button[data-key="a"]');
+            button.click();
+            expect(game.addLetter).not.toHaveBeenCalled();
         });
 
-        test('should remove existing notifications before showing new ones', () => {
-            // Show win notification
+        test('should show game end messages', () => {
+            jest.spyOn(window, 'alert').mockImplementation(() => {});
+            
+            // Test win message
             window.dispatchEvent(new CustomEvent('wordleGameWon', {
-                detail: { word: 'stare', attempts: 3, definition: 'to look fixedly' }
+                detail: {
+                    word: 'stare',
+                    attempts: 3,
+                    definition: 'To look fixedly'
+                }
             }));
+            
+            expect(window.alert).toHaveBeenCalledWith(
+                expect.stringContaining('Congratulations')
+            );
 
-            // Show lose notification
+            // Test lose message
             window.dispatchEvent(new CustomEvent('wordleGameLost', {
-                detail: { word: 'stare', definition: 'to look fixedly' }
+                detail: {
+                    word: 'stare',
+                    attempts: 6,
+                    definition: 'To look fixedly'
+                }
             }));
 
-            // Check that only lose notification exists
-            expect(document.querySelectorAll('.win-notification').length).toBe(0);
-            expect(document.querySelectorAll('.lose-notification').length).toBe(1);
+            expect(window.alert).toHaveBeenCalledWith(
+                expect.stringContaining('Game Over')
+            );
+        });
+    });
+
+    describe('Error Handling', () => {
+        test('should handle invalid game state gracefully', () => {
+            game.getGameState.mockReturnValue(null);
+            expect(() => ui.updateBoard(['correct', 'present', 'absent', 'correct', 'present']))
+                .not.toThrow();
+        });
+
+        test('should handle missing DOM elements gracefully', () => {
+            document.body.innerHTML = '';
+            expect(() => new WordleUI(game)).not.toThrow();
+        });
+
+        test('should handle invalid guess results gracefully', () => {
+            game.submitGuess.mockReturnValue(null);
+            expect(() => ui.handleInput('enter')).not.toThrow();
+        });
+    });
+
+    describe('Mobile and Accessibility', () => {
+        test('should handle touch events', () => {
+            const button = keyboard.querySelector('button[data-key="a"]');
+            button.dispatchEvent(new TouchEvent('touchend'));
+            expect(game.addLetter).toHaveBeenCalledWith('a');
+        });
+
+        test('should have proper ARIA labels', () => {
+            const buttons = keyboard.getElementsByTagName('button');
+            Array.from(buttons).forEach(button => {
+                expect(button.hasAttribute('aria-label')).toBe(true);
+            });
+        });
+
+        test('should handle screen rotation', () => {
+            // Simulate portrait mode
+            window.innerWidth = 375;
+            window.innerHeight = 667;
+            window.dispatchEvent(new Event('resize'));
+            expect(keyboard.style.maxWidth).toBe('100%');
+            
+            // Simulate landscape mode
+            window.innerWidth = 667;
+            window.innerHeight = 375;
+            window.dispatchEvent(new Event('resize'));
+            expect(keyboard.style.maxWidth).toBe('800px');
         });
     });
 });

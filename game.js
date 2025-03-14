@@ -1,31 +1,46 @@
+// This is our main game class that handles all the Wordle game rules and logic
 class WordleGame {
+    // Set up the game rules when we start
     constructor(wordData = {}) {
-        this.WORD_LENGTH = 5;
-        this.MAX_ATTEMPTS = 6;
-        this.currentRow = 0;
-        this.currentGuess = '';
-        this.targetWord = '';
-        this.targetDefinition = '';
-        this.gameOver = false;
-        this.wordData = wordData;
-        this.guesses = [];
-        this.gameWon = false;
-        this.gameLost = false;
+        // Game settings
+        this.WORD_LENGTH = 5;       // Words must be 5 letters long
+        this.MAX_ATTEMPTS = 6;      // Players get 6 tries to guess the word
+        
+        // Game state
+        this.currentRow = 0;        // Which guess we're on (0-5)
+        this.currentGuess = '';     // Letters typed so far
+        this.targetWord = '';       // The word players need to guess
+        this.targetDefinition = ''; // What the word means
+        this.gameOver = false;      // True when game ends
+        this.wordData = wordData;   // Dictionary of words and definitions
+        this.guesses = [];          // All the guesses made
+        this.gameWon = false;       // True when player wins
+        this.gameLost = false;      // True when player loses
+
+        // If we got word data, pick a word right away
+        if (Object.keys(wordData).length > 0) {
+            this.selectNewWord();
+        }
     }
 
+    // Start a new game by loading words and picking one
     async initialize() {
         if (Object.keys(this.wordData).length === 0) {
             try {
                 const response = await fetch('lib/test.json');
-                if (!response.ok) throw new Error('Failed to load word list');
+                if (!response.ok) {
+                    throw new Error('Failed to load word list');
+                }
                 this.wordData = await response.json();
+                this.selectNewWord();
             } catch (error) {
+                console.error('Failed to load word list:', error);
                 throw new Error('Failed to load word list');
             }
         }
-        this.selectNewWord();
     }
 
+    // Pick a random word from our dictionary
     selectNewWord() {
         const words = Object.keys(this.wordData);
         if (words.length === 0) {
@@ -33,62 +48,82 @@ class WordleGame {
         }
         this.targetWord = words[Math.floor(Math.random() * words.length)].toLowerCase();
         this.targetDefinition = this.wordData[this.targetWord];
+        console.log('Target word:', this.targetWord); // Debug line
         return {
             word: this.targetWord,
             definition: this.targetDefinition
         };
     }
 
+    // Add a letter to the current guess
     addLetter(letter) {
-        if (this.gameOver) return false;
-        if (this.currentGuess.length >= this.WORD_LENGTH) return false;
-        if (!/^[a-zA-Z]$/.test(letter)) return false;
+        // Don't add letters if:
+        // - Game is over
+        // - Guess is already full
+        if (this.gameOver || 
+            this.currentGuess.length >= this.WORD_LENGTH) {
+            return false;
+        }
         
-        this.currentGuess += letter.toLowerCase();
+        letter = letter.toLowerCase();
+        if (!/^[a-z]$/.test(letter)) {
+            return false;
+        }
+        
+        // Add the letter and return true
+        this.currentGuess += letter;
         return true;
     }
 
+    // Remove the last letter from the current guess
     removeLetter() {
-        if (this.gameOver) return false;
-        if (this.currentGuess.length === 0) return false;
-
+        // Don't remove if:
+        // - Game is over
+        // - No letters to remove
+        if (this.gameOver || this.currentGuess.length === 0) {
+            return false;
+        }
+        
+        // Remove last letter and return true
         this.currentGuess = this.currentGuess.slice(0, -1);
         return true;
     }
 
+    // Try to submit the current guess
     submitGuess() {
-        if (this.gameOver) return null;
-        if (this.currentGuess.length !== this.WORD_LENGTH) return null;
+        if (this.gameOver || this.currentGuess.length !== this.WORD_LENGTH) {
+            return null;
+        }
 
-        const result = this.checkGuess(this.currentGuess);
+        const result = this.checkGuess();
         this.guesses.push(this.currentGuess);
         this.currentRow++;
-        
+
         if (this.currentGuess === this.targetWord) {
             this.gameOver = true;
             this.gameWon = true;
             if (typeof window !== 'undefined') {
-                const winEvent = new CustomEvent('wordleGameWon', {
+                const event = new CustomEvent('wordleGameWon', {
                     detail: {
                         word: this.targetWord,
                         attempts: this.currentRow,
                         definition: this.targetDefinition
                     }
                 });
-                window.dispatchEvent(winEvent);
+                window.dispatchEvent(event);
             }
         } else if (this.currentRow >= this.MAX_ATTEMPTS) {
             this.gameOver = true;
             this.gameLost = true;
             if (typeof window !== 'undefined') {
-                const loseEvent = new CustomEvent('wordleGameLost', {
+                const event = new CustomEvent('wordleGameLost', {
                     detail: {
                         word: this.targetWord,
-                        definition: this.targetDefinition,
-                        attempts: this.MAX_ATTEMPTS
+                        attempts: this.MAX_ATTEMPTS,
+                        definition: this.targetDefinition
                     }
                 });
-                window.dispatchEvent(loseEvent);
+                window.dispatchEvent(event);
             }
         }
 
@@ -96,34 +131,38 @@ class WordleGame {
         return result;
     }
 
-    checkGuess(guess) {
+    // Check how well the guess matches the target word
+    checkGuess() {
         const result = new Array(this.WORD_LENGTH).fill('absent');
         const targetLetters = [...this.targetWord];
-        const guessLetters = [...guess];
+        const guessLetters = [...this.currentGuess];
+        const usedIndices = new Set();
         
-        // First pass: Mark correct letters
+        // First pass: mark correct letters
         for (let i = 0; i < this.WORD_LENGTH; i++) {
             if (guessLetters[i] === targetLetters[i]) {
                 result[i] = 'correct';
-                targetLetters[i] = null;
-                guessLetters[i] = null;
+                usedIndices.add(i);
             }
         }
         
-        // Second pass: Mark present letters
+        // Second pass: mark present letters
         for (let i = 0; i < this.WORD_LENGTH; i++) {
-            if (guessLetters[i] === null) continue;
+            if (result[i] === 'correct') continue;
             
-            const targetIndex = targetLetters.findIndex(letter => letter === guessLetters[i]);
-            if (targetIndex !== -1) {
-                result[i] = 'present';
-                targetLetters[targetIndex] = null;
+            for (let j = 0; j < this.WORD_LENGTH; j++) {
+                if (!usedIndices.has(j) && guessLetters[i] === targetLetters[j]) {
+                    result[i] = 'present';
+                    usedIndices.add(j);
+                    break;
+                }
             }
         }
         
         return result;
     }
 
+    // Get the current state of the game
     getGameState() {
         return {
             currentRow: this.currentRow,
@@ -138,11 +177,8 @@ class WordleGame {
     }
 }
 
-// Export for Node.js
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = WordleGame;
-}
-// Export for browser
-if (typeof window !== 'undefined') {
+} else if (typeof window !== 'undefined') {
     window.WordleGame = WordleGame;
 }

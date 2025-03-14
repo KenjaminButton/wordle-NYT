@@ -1,226 +1,227 @@
 class WordleUI {
     constructor(game) {
         this.game = game;
+        this.currentRow = 0;
+        this.currentTile = 0;
         this.board = document.getElementById('board');
         this.keyboard = document.getElementById('keyboard');
-        this.targetWordDisplay = document.getElementById('target-word');
         
-        this.setupBoard();
-        this.setupKeyboard();
-        this.setupEventListeners();
+        // Handle missing DOM elements gracefully
+        if (this.board && this.keyboard) {
+            this.setupBoard();
+            this.setupKeyboard();
+            this.setupEventListeners();
+        } else {
+            console.warn('Required DOM elements not found');
+        }
     }
 
     setupBoard() {
+        if (!this.board) return;
+        
         this.board.innerHTML = '';
-        for (let i = 0; i < this.game.MAX_ATTEMPTS; i++) {
-            const row = document.createElement('div');
-            row.className = 'row';
-            for (let j = 0; j < this.game.WORD_LENGTH; j++) {
+        
+        for (let i = 0; i < 6; i++) {
+            const boardRow = document.createElement('div');
+            boardRow.className = 'board-row';
+            
+            for (let j = 0; j < 5; j++) {
                 const tile = document.createElement('div');
                 tile.className = 'tile';
-                row.appendChild(tile);
+                boardRow.appendChild(tile);
             }
-            this.board.appendChild(row);
+            this.board.appendChild(boardRow);
         }
     }
 
     setupKeyboard() {
-        // iPhone-style keyboard layout
+        if (!this.keyboard) return;
+        
+        this.keyboard.innerHTML = '';
+
         const rows = [
-            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-            ['Shift', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Enter']
+            ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+            ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+            ['enter', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'del'],
+            ['space']
         ];
 
-        this.keyboard.innerHTML = '';
-        this.keyboard.className = 'iphone-keyboard';
-
-        rows.forEach((row, rowIndex) => {
-            const rowElement = document.createElement('div');
-            rowElement.className = 'keyboard-row';
-            
-            // Add left spacing for QWERTY rows to match iPhone layout
-            if (rowIndex === 1) { // A-L row
-                rowElement.style.paddingLeft = '5%';
-            } else if (rowIndex === 2) { // Z-M row
-                rowElement.style.paddingLeft = '0';
-            }
+        rows.forEach(row => {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'keyboard-row';
 
             row.forEach(key => {
                 const button = document.createElement('button');
-                button.setAttribute('data-key', key === 'Shift' ? 'Backspace' : key);
-                button.textContent = key === 'Shift' ? '⌫' : key;
-                button.className = 'keyboard-button';
-                
-                if (key === 'Enter' || key === 'Shift') {
-                    button.classList.add('keyboard-button-wide');
+                button.type = 'button';
+                button.textContent = key;
+                button.setAttribute('data-key', key);
+                button.setAttribute('aria-label', key === 'del' ? 'delete' : key);
+
+                if (key === 'enter' || key === 'del') {
+                    button.className = 'return-key';
                 }
-                
-                // Add iPhone-style button appearance
-                button.classList.add('iphone-key');
-                
-                rowElement.appendChild(button);
+
+                rowDiv.appendChild(button);
             });
-            this.keyboard.appendChild(rowElement);
-        });
 
-        // Physical keyboard
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                this.handleInput('Enter');
-            } else if (e.key === 'Backspace') {
-                this.handleInput('Backspace');
-            } else if (/^[a-zA-Z]$/.test(e.key)) {
-                this.handleInput(e.key.toLowerCase());
-            }
-        });
-
-        // On-screen keyboard
-        this.keyboard.addEventListener('click', (e) => {
-            const button = e.target.closest('button');
-            if (!button) return;
-            const key = button.getAttribute('data-key');
-            this.handleInput(key);
+            this.keyboard.appendChild(rowDiv);
         });
     }
 
     setupEventListeners() {
-        // Listen for win event
-        window.addEventListener('wordleGameWon', (e) => {
-            this.showWinNotification(e.detail);
+        if (!this.keyboard || !this.board) return;
+
+        // Keyboard events
+        document.addEventListener('keydown', (e) => {
+            if (this.isGameOver()) return;
+            
+            let key = e.key.toLowerCase();
+            if (key === 'enter') {
+                key = 'enter';
+            } else if (key === 'backspace' || key === 'delete') {
+                key = 'del';
+            } else if (key === ' ') {
+                key = 'space';
+                e.preventDefault(); // Prevent page scroll
+            }
+            
+            this.handleInput(key);
         });
 
-        // Listen for lose event
+        // Mouse clicks
+        this.keyboard.addEventListener('click', (e) => {
+            if (this.isGameOver()) return;
+            
+            const button = e.target.closest('button');
+            if (!button) return;
+            
+            const key = button.getAttribute('data-key');
+            this.handleInput(key);
+        });
+
+        // Touch events
+        this.keyboard.addEventListener('touchend', (e) => {
+            if (this.isGameOver()) return;
+            
+            const button = e.target.closest('button');
+            if (!button) return;
+            
+            e.preventDefault(); // Prevent double-firing with click event
+            const key = button.getAttribute('data-key');
+            this.handleInput(key);
+        });
+
+        // Game end events
+        window.addEventListener('wordleGameWon', (e) => {
+            setTimeout(() => {
+                alert(`Congratulations! You won in ${e.detail.attempts} attempts!\nWord: ${e.detail.word}\nDefinition: ${e.detail.definition}`);
+            }, 500);
+        });
+
         window.addEventListener('wordleGameLost', (e) => {
-            this.showLoseNotification(e.detail);
+            setTimeout(() => {
+                alert(`Game Over! The word was: ${e.detail.word}\nDefinition: ${e.detail.definition}`);
+            }, 500);
         });
     }
 
+    isGameOver() {
+        const state = this.game.getGameState();
+        return state && state.gameOver;
+    }
+
     handleInput(key) {
-        if (key === 'Enter') {
+        if (!this.game || !this.board || this.isGameOver()) return;
+
+        if (key === 'enter') {
             const result = this.game.submitGuess();
             if (result) {
                 this.updateBoard(result);
-                this.checkGameEnd();
+                this.updateKeyboardColors(this.game.getGameState().guesses.slice(-1)[0], result);
             }
-        } else if (key === 'Backspace' || key === '⌫') {
+        } else if (key === 'del') {
             if (this.game.removeLetter()) {
                 this.updateCurrentRow();
             }
-        } else if (/^[a-zA-Z]$/.test(key)) {
-            if (this.game.addLetter(key.toLowerCase())) {
+        } else if (key === 'space') {
+            return;
+        } else if (/^[a-z]$/.test(key)) {
+            if (this.game.addLetter(key)) {
                 this.updateCurrentRow();
             }
         }
     }
 
     updateCurrentRow() {
-        const state = this.game.getGameState();
-        const tiles = this.board.children[state.currentRow].children;
-        const guess = state.currentGuess.padEnd(this.game.WORD_LENGTH);
-        
-        for (let i = 0; i < this.game.WORD_LENGTH; i++) {
-            tiles[i].textContent = guess[i].toUpperCase();
+        if (!this.game || !this.board) return;
+
+        try {
+            const state = this.game.getGameState();
+            if (!state) return;
+
+            const row = this.board.children[state.currentRow];
+            if (!row) return;
+
+            const tiles = row.children;
+            const guess = state.currentGuess.padEnd(5);
+            
+            for (let i = 0; i < 5; i++) {
+                if (tiles[i]) {
+                    tiles[i].textContent = guess[i].toUpperCase();
+                }
+            }
+        } catch (error) {
+            console.error('Error updating current row:', error);
         }
     }
 
     updateBoard(result) {
-        const state = this.game.getGameState();
-        const row = this.board.children[state.currentRow - 1];
-        const tiles = Array.from(row.children);
-        const guess = state.guesses[state.guesses.length - 1];
+        if (!this.game || !this.board || !result) return;
 
-        tiles.forEach((tile, index) => {
-            tile.textContent = guess[index].toUpperCase();
-            if (result[index] === 'correct') {
-                tile.classList.add('correct');
-            } else if (result[index] === 'present') {
-                tile.classList.add('present');
-            } else {
-                tile.classList.add('absent');
-            }
-        });
+        try {
+            const state = this.game.getGameState();
+            if (!state) return;
 
-        // Update keyboard
-        const buttons = this.keyboard.getElementsByTagName('button');
-        guess.split('').forEach((letter, index) => {
-            const button = Array.from(buttons).find(b => 
-                b.getAttribute('data-key').toLowerCase() === letter
-            );
-            if (button) {
-                if (result[index] === 'correct') {
-                    button.classList.add('correct');
-                } else if (result[index] === 'present' && !button.classList.contains('correct')) {
-                    button.classList.add('present');
-                } else if (!button.classList.contains('correct') && !button.classList.contains('present')) {
-                    button.classList.add('absent');
-                }
-            }
-        });
-    }
+            const row = this.board.children[state.currentRow - 1];
+            if (!row) return;
 
-    checkGameEnd() {
-        const state = this.game.getGameState();
-        if (state.gameOver) {
-            const won = state.guesses[state.guesses.length - 1] === state.targetWord;
-            setTimeout(() => {
-                alert(won ? 'Congratulations! You won!' : `Game Over! The word was ${state.targetWord.toUpperCase()}`);
-            }, 500);
+            const guess = state.guesses[state.guesses.length - 1];
+            if (!guess) return;
+
+            Array.from(row.children).forEach((tile, i) => {
+                tile.textContent = guess[i].toUpperCase();
+                tile.classList.remove('correct', 'present', 'absent');
+                tile.classList.add(result[i]);
+            });
+        } catch (error) {
+            console.error('Error updating board:', error);
         }
     }
 
-    updateTargetWord() {
-        const state = this.game.getGameState();
-        this.targetWordDisplay.innerHTML = 
-            `<strong>${state.targetWord.toUpperCase()}</strong>: ${state.targetDefinition}`;
-    }
+    updateKeyboardColors(guess, result) {
+        if (!this.keyboard || !guess || !result) return;
 
-    showWinNotification({ word, attempts, definition }) {
-        this.removeExistingNotifications();
-
-        const notification = document.createElement('div');
-        notification.className = 'win-notification';
-        notification.innerHTML = `
-            <h2>🎉 CONGRATULATIONS! 🎉</h2>
-            <p>You won in ${attempts} ${attempts === 1 ? 'try' : 'tries'}!</p>
-            <p>The word was: ${word.toUpperCase()}</p>
-            <p><em>${definition}</em></p>
-            <button onclick="this.parentElement.remove()">Close</button>
-        `;
-
-        document.body.appendChild(notification);
-    }
-
-    showLoseNotification({ word, definition }) {
-        this.removeExistingNotifications();
-
-        const notification = document.createElement('div');
-        notification.className = 'lose-notification';
-        notification.innerHTML = `
-            <h2>😔 GAME OVER!</h2>
-            <p>Better luck next time!</p>
-            <p>The word was: ${word.toUpperCase()}</p>
-            <p><em>${definition}</em></p>
-            <button onclick="this.parentElement.remove()">Close</button>
-        `;
-
-        document.body.appendChild(notification);
-    }
-
-    removeExistingNotifications() {
-        const existingWin = document.querySelector('.win-notification');
-        const existingLose = document.querySelector('.lose-notification');
-        if (existingWin) existingWin.remove();
-        if (existingLose) existingLose.remove();
+        try {
+            guess.split('').forEach((letter, i) => {
+                const button = this.keyboard.querySelector(`button[data-key="${letter}"]`);
+                if (button) {
+                    if (result[i] === 'correct') {
+                        button.classList.add('correct');
+                    } else if (result[i] === 'present' && !button.classList.contains('correct')) {
+                        button.classList.add('present');
+                    } else if (!button.classList.contains('correct') && !button.classList.contains('present')) {
+                        button.classList.add('absent');
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error updating keyboard colors:', error);
+        }
     }
 }
 
-// Export for Node.js
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = WordleUI;
-}
-
-// Export for browser
-if (typeof window !== 'undefined') {
+} else if (typeof window !== 'undefined') {
     window.WordleUI = WordleUI;
 }
